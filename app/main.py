@@ -2,15 +2,21 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.router import router as api_v1_router
 from app.config import get_settings
+from app.infrastructure.cache import redis_client
 from app.infrastructure.database.session import engine
+from app.infrastructure.graph import graph_repository
+from app.web import _WEB_ROOT, frontend
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     yield
+    await redis_client.aclose()
+    await graph_repository.close()
     await engine.dispose()
 
 
@@ -22,6 +28,8 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
     application.include_router(api_v1_router, prefix="/api/v1")
+    application.mount("/assets", StaticFiles(directory=_WEB_ROOT), name="assets")
+    application.add_api_route("/", frontend, include_in_schema=False)
     return application
 
 

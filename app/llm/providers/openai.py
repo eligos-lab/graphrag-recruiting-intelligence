@@ -1,7 +1,17 @@
+import logging
 from collections.abc import Sequence
 
 import httpx
 from pydantic import BaseModel, ConfigDict
+
+logger = logging.getLogger(__name__)
+
+
+class EmbeddingUsage(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    prompt_tokens: int = 0
+    total_tokens: int = 0
 
 
 class EmbeddingData(BaseModel):
@@ -16,6 +26,7 @@ class EmbeddingResponse(BaseModel):
 
     data: list[EmbeddingData]
     model: str
+    usage: EmbeddingUsage | None = None
 
 
 class OpenAIEmbeddingProvider:
@@ -58,6 +69,16 @@ class OpenAIEmbeddingProvider:
         )
         response.raise_for_status()
         payload = EmbeddingResponse.model_validate(response.json())
+        if payload.usage is not None:
+            logger.info(
+                "Embedding call completed",
+                extra={
+                    "llm_model": payload.model,
+                    "input_count": len(texts),
+                    "prompt_tokens": payload.usage.prompt_tokens,
+                    "total_tokens": payload.usage.total_tokens,
+                },
+            )
         ordered = sorted(payload.data, key=lambda item: item.index)
         return [item.embedding for item in ordered]
 

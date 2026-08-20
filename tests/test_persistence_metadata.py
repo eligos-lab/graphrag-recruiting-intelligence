@@ -4,10 +4,12 @@ from app.infrastructure.database.base import Base
 
 def test_phase_one_tables_are_registered() -> None:
     expected_tables = {
+        "candidate_inferences",
         "companies",
         "company_domains",
         "domains",
         "document_chunks",
+        "ingestion_jobs",
         "people",
         "person_companies",
         "person_domains",

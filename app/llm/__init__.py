@@ -1,3 +1,3 @@
-from app.llm.protocols import EmbeddingProvider
+from app.llm.protocols import EmbeddingProvider, LanguageModelProvider
 
-__all__ = ["EmbeddingProvider"]
+__all__ = ["EmbeddingProvider", "LanguageModelProvider"]

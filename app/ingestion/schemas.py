@@ -69,3 +69,20 @@ class CanonicalResume(BaseModel):
     education: list[EducationItem] = Field(default_factory=list)
     projects: list[ProjectItem] = Field(default_factory=list)
     domains: list[str] = Field(default_factory=list)
+
+
+class ExtractedResume(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    full_name: str | None = None
+    location: str | None = None
+    country: str | None = None
+    current_title: str | None = None
+    years_experience: float | None = Field(default=None, ge=0)
+    summary: str | None = None
+    experience: list[ExperienceItem] = Field(default_factory=list)
+    skills: list[str] = Field(default_factory=list)
+    technologies: list[str] = Field(default_factory=list)
+    education: list[EducationItem] = Field(default_factory=list)
+    projects: list[ProjectItem] = Field(default_factory=list)
+    domains: list[str] = Field(default_factory=list)

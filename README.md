@@ -1,101 +1,216 @@
 # GraphRAG Recruiting Intelligence
 
-Evidence-first AI-система для поиска и анализа кандидатов по заранее загруженному корпусу.
-LLM не является базой знаний: факты о кандидатах будут поступать только из PostgreSQL,
-pgvector и Neo4j.
+Evidence-first AI-система для поиска, анализа, ранжирования и подбора команд по заранее
+загруженному корпусу кандидатов. Система не выполняет live-поиск через LinkedIn, HH.ru или
+другие recruitment-платформы.
 
-## Текущий статус
+LLM отвечает за structured extraction, parsing intent, reranking и формулировку ответа.
+PostgreSQL, pgvector и Neo4j остаются единственными источниками фактов о кандидатах.
 
-Реализованы **Phase 1–3**:
+## Реализованный MVP: Phase 1–10
 
-- FastAPI-приложение и versioned API;
-- async SQLAlchemy 2 и PostgreSQL;
-- независимые доменные сущности и отдельные ORM-модели;
-- основные relational-сущности и связи knowledge graph;
-- Alembic и первая миграция;
-- проверка доступности API и базы данных;
-- Docker Compose для API и PostgreSQL (образ уже совместим с будущим pgvector);
-- pytest, Ruff и mypy;
-- canonical resume schema для structured datasets;
-- адаптеры CSV, JSON и JSONL;
-- raw document layer с checksum и исходным текстом;
-- deterministic normalization и aliases для PostgreSQL/AWS/Kubernetes и других имён;
-- entity resolution по source identity, checksum и безопасному normalized identity;
-- idempotent persistence кандидатов и связанных сущностей;
-- CLI для ingestion и синтетический dataset.
-- semantic/section-aware chunking по summary, experience, projects, education и skills;
-- evidence metadata с ID кандидата, документа и связанных компаний;
-- vendor-neutral `EmbeddingProvider` и рабочий OpenAI adapter;
-- batched embeddings с проверкой количества, размерности и конечности значений;
-- таблица `document_chunks`, pgvector и HNSW cosine index;
-- идемпотентный embedding pipeline, не вызывающий API для неизменённых чанков;
-- CLI для генерации и обновления embeddings.
+- FastAPI, async SQLAlchemy 2, Alembic и PostgreSQL;
+- canonical resume schema и adapters для CSV, JSON, JSONL, PDF и text;
+- raw document layer, checksums, normalization, aliases и idempotent entity resolution;
+- section-aware chunks и embeddings через локальную Ollama или OpenAI;
+- pgvector `VECTOR(1024)` для бесплатной Qwen-модели и HNSW cosine index;
+- `CandidateSearchIntent` через strict structured output;
+- безопасный deterministic planner без LLM-generated SQL/Cypher;
+- structured PostgreSQL filtering, pgvector search и Neo4j graph traversal;
+- hybrid retrieval, composite score breakdown и evidence-only LLM reranking;
+- evidence-based answer generation с обязательной проверкой candidate/chunk IDs;
+- bounded multi-hop reasoning до трёх переходов;
+- expertise, similarity и relationship inference в отдельном `unverified` слое;
+- Team Builder с уникальными кандидатами, diversity penalty и unfilled slots;
+- Celery worker, Redis broker/result backend и persistent ingestion jobs;
+- Docker Compose для `api`, `worker`, `postgres`, `neo4j` и `redis`;
+- timings, query IDs, retrieval strategy и token-usage logging;
+- automated tests, Ruff и strict mypy.
 
-PDF/LLM extraction, query understanding, retrieval, Neo4j, Redis и Celery намеренно отложены
-до соответствующих фаз.
-
-## Структура
+## Архитектура
 
 ```text
 app/
-├── api/                         # FastAPI routers и HTTP handlers
-├── domain/                      # Независимые бизнес-сущности
-├── ingestion/                   # Sources, parsing, chunking и pipelines
-├── infrastructure/database/     # SQLAlchemy models, engine, sessions
-├── llm/                         # Vendor-neutral contracts и adapters
-├── repositories/                # Ingestion и chunk persistence operations
-├── schemas/                     # Pydantic API contracts
-├── services/                    # Embedding orchestration и validation
-├── config.py                    # Typed environment settings
-└── main.py                      # Application factory
-alembic/                         # Database migrations
-tests/                           # Unit/API/metadata tests
-compose.yaml                     # Local API + PostgreSQL environment
+├── api/                 # FastAPI routes и dependencies
+├── domain/              # Независимые core entities
+├── generation/          # Evidence-constrained answer generation
+├── graph/               # Neo4j adapter и graph synchronization
+├── inference/           # Explicit unverified inference layer
+├── ingestion/           # Sources, parsers, chunking и pipelines
+├── infrastructure/      # PostgreSQL, Redis и Neo4j lifecycle
+├── llm/                 # Vendor-neutral protocols, Ollama и OpenAI adapters
+├── ranking/             # Composite scoring и reranking
+├── reasoning/           # Bounded multi-hop reasoning
+├── repositories/        # Relational, vector, graph snapshot и job persistence
+├── retrieval/           # SearchIntent, safe planner и HybridRetriever
+├── services/            # Application orchestration
+├── team_builder/        # Multi-role team selection
+└── workers/             # Celery application и tasks
+alembic/                 # PostgreSQL/pgvector migrations
+data/                    # Corpus mounted read-only into containers
+tests/                   # Unit, repository, pipeline и API tests
+compose.yaml
 Dockerfile
 pyproject.toml
 ```
 
-## Запуск через Docker
+External dependencies изолированы за протоколами. Бизнес-логика не импортирует OpenAI SDK или
+Neo4j driver напрямую. Все Cypher templates определены приложением и получают только параметры.
+
+## Быстрый запуск
 
 Требуются Docker и Docker Compose v2.
+
+```bash
+cp .env.example .env
+```
+
+Бесплатная конфигурация по умолчанию использует локальную Ollama и не требует API-ключей.
+До первого запуска установите Ollama и скачайте компактные модели:
+
+```bash
+ollama pull qwen3:4b
+ollama pull qwen3-embedding:0.6b
+```
+
+На Windows Ollama доступна через `winget install Ollama.Ollama`. `.env` исключён из Git.
+Платный OpenAI provider остаётся опциональным: задайте provider, URL, model, dimension и ключи,
+описанные в `.env.example`.
+При запуске API без Docker замените `host.docker.internal` в `.env` на `localhost`.
 
 ```bash
 docker compose up --build
 ```
 
-После старта:
+После запуска:
 
+- Веб-интерфейс: <http://localhost:8000>
 - OpenAPI: <http://localhost:8000/docs>
-- Health: <http://localhost:8000/api/v1/health>
+- API health: <http://localhost:8000/api/v1/health>
+- Neo4j Browser: <http://localhost:7474>
 
-API-контейнер применяет `alembic upgrade head` перед запуском Uvicorn.
+API применяет `alembic upgrade head` при старте. Health считается успешным только при доступности
+PostgreSQL, Redis и Neo4j.
 
-Загрузка синтетического набора данных в PostgreSQL:
+## Загрузка корпуса
+
+Для обычного использования откройте <http://localhost:8000>: там можно сформулировать поиск
+обычными словами, загрузить свой файл и добавить 50 вымышленных демо-профилей одной кнопкой.
+Демо-профили **добавляются** к корпусу и не заменяют ранее загруженные резюме.
+
+Веб-загрузка принимает JSON, JSONL, CSV, PDF, TXT, MD и ZIP до 25 МБ. ZIP распаковывается
+безопасно, максимум до 100 поддерживаемых файлов; каждый файл становится отдельной задачей
+очереди. RAR намеренно не принимается: для него нужен системный распаковщик, поэтому перед
+загрузкой преобразуйте архив в ZIP. JSON может быть списком
+резюме или объектом вида `{ "records": [...] }`; CSV — одна строка на резюме. PDF/TXT/MD
+интерпретируются как одно неструктурированное резюме через локальную LLM. Загруженный файл
+сохраняется только локально в `data/uploads/`, затем ставится в очередь Celery. Повторная
+загрузка того же структурированного источника обновляет его идемпотентно.
+
+Файлы должны находиться в `data/`. Job path всегда разрешается относительно этого каталога и не
+может выйти за его пределы.
 
 ```bash
-docker compose run --rm api sh -c \
-  "alembic upgrade head && python -m app.ingestion.cli /data/sample_candidates.json \
-  --source-name sample"
+curl -X POST http://localhost:8000/api/v1/ingestion/jobs \
+  -H "Content-Type: application/json" \
+  -d '{
+    "path": "sample_candidates.json",
+    "source_name": "sample",
+    "generate_embeddings": true,
+    "update_graph": true
+  }'
 ```
 
-Команда возвращает JSON-отчёт с количеством созданных, обновлённых, пропущенных и ошибочных
-документов. Повторный запуск не создаёт дубли.
-
-Для embeddings скопируйте `.env.example` в локальный `.env`, задайте там
-`GRAPHRAG_EMBEDDING_API_KEY`, затем запустите:
+Статус:
 
 ```bash
-docker compose run --rm api sh -c \
-  "alembic upgrade head && python -m app.ingestion.embed_cli"
+curl http://localhost:8000/api/v1/ingestion/jobs/JOB_UUID
 ```
 
-Повторный запуск пропускает документы, если содержимое чанков и embedding model не изменились.
-Ключ не сохраняется в БД и не должен попадать в Git.
+Worker выполняет parsing, relational persistence, chunking, embeddings и graph sync. Повторная
+загрузка не создаёт дубли; неизменённые structured chunks не вызывают embedding API повторно.
 
-Остановка с сохранением данных:
+PDF adapter извлекает существующий text layer через pypdf. Для scanned/image-only PDF требуется
+отдельный OCR preprocessing: система возвращает явную ошибку и не подменяет OCR выдуманным текстом.
+
+## Поиск
 
 ```bash
-docker compose down
+curl -X POST http://localhost:8000/api/v1/search \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "Найди senior backend инженера из Германии с fintech, Kafka и Kubernetes",
+    "limit": 20,
+    "generate_answer": true
+  }'
+```
+
+Ответ включает:
+
+- validated `CandidateSearchIntent`;
+- кандидатов и composite score breakdown;
+- source chunks и graph evidence;
+- FACT/INFERENCE claims с evidence IDs;
+- retrieval strategy;
+- timings каждого этапа и общий latency.
+
+## Team Builder
+
+```bash
+curl -X POST http://localhost:8000/api/v1/team-builder \
+  -H "Content-Type: application/json" \
+  -d '{
+    "context": "fintech security platform",
+    "roles": [
+      {
+        "role": "backend engineer",
+        "count": 2,
+        "required_skills": ["Kafka"],
+        "required_technologies": ["Kubernetes"],
+        "required_domains": ["fintech"]
+      },
+      {
+        "role": "ML engineer",
+        "required_technologies": ["Graph Neural Networks"]
+      }
+    ]
+  }'
+```
+
+Один кандидат не назначается на несколько slots. Если доказательно подходящих людей недостаточно,
+API возвращает `unfilled_roles`.
+
+## API
+
+```text
+POST /api/v1/search
+GET  /api/v1/candidates/{id}
+GET  /api/v1/candidates/{id}/graph
+GET  /api/v1/candidates/{id}/inferences
+POST /api/v1/candidates/{id}/inferences/rebuild
+POST /api/v1/ingestion/jobs
+POST /api/v1/ingestion/jobs/upload
+POST /api/v1/ingestion/jobs/upload-archive
+POST /api/v1/ingestion/jobs/demo
+GET  /api/v1/ingestion/jobs/{id}
+GET  /api/v1/candidates/{id}/resume.pdf
+GET  /api/v1/candidates/{id}/resume.docx
+POST /api/v1/team-builder
+GET  /api/v1/health
+```
+
+## Ручные pipelines
+
+```bash
+python -m app.ingestion.cli data/sample_candidates.json --source-name sample
+python -m app.ingestion.embed_cli
+python -m app.graph.sync_cli
+```
+
+Worker без Docker:
+
+```bash
+celery -A app.workers.celery_app:celery_app worker --loglevel=INFO
 ```
 
 ## Локальная разработка
@@ -109,17 +224,16 @@ alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-Локальный ingestion после применения миграций:
+На уже подготовленной Windows-машине весь локальный контур можно повторно запустить одной командой:
 
-```bash
-python -m app.ingestion.cli data/sample_candidates.json --source-name sample
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/start-local.ps1
 ```
 
-Генерация embeddings после ingestion:
+Остановить сервисы проекта (Ollama останется доступной другим приложениям):
 
-```bash
-# Сначала задайте GRAPHRAG_EMBEDDING_API_KEY в .env
-python -m app.ingestion.embed_cli
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/stop-local.ps1
 ```
 
 Проверки:
@@ -129,31 +243,17 @@ pytest
 ruff check .
 ruff format --check .
 mypy app
+alembic upgrade head --sql
 ```
 
-## Архитектурные решения Phase 1–3
+## Архитектурные гарантии
 
-- UUID используются как стабильные идентификаторы для последующей синхронизации с графом.
-- Domain dataclasses не зависят от SQLAlchemy; persistence-модели находятся в infrastructure.
-- `(source, source_id)` уникален для человека и закладывает основу idempotent ingestion.
-- Связи knowledge graph представлены явными many-to-many таблицами, без Neo4j driver calls.
-- `GET /api/v1/health` возвращает `503/degraded`, если PostgreSQL недоступен.
-- Raw document уникален по `(source, external_id)`, а checksum отсекает копии между sources.
-- Normalized identity используется только при наличии country и единственном совпадении;
-  name-only matching запрещён как слишком рискованный.
-- Alias сохраняется отдельно от canonical skill, поэтому исходные варианты не теряются.
-- Обновление кандидата объединяет знания из загруженных документов. Удаление устаревших
-  связей потребует provenance на relationship edges в будущем расширении модели.
-- Чанки сохраняют semantic section и evidence metadata; фиксированная нарезка всего резюме
-  по N символов не используется.
-- Бизнес-логика зависит от `EmbeddingProvider`, а OpenAI изолирован в infrastructure adapter.
-- Размерность embeddings задаётся конфигурацией и согласована между provider validation,
-  ORM-моделью и Alembic migration.
-- HNSW индекс использует cosine distance; фактические данные кандидатов остаются в PostgreSQL.
-- Тестовый deterministic provider существует только в automated tests и не выдаётся за AI.
-
-## Следующая фаза
-
-Phase 4 добавит Pydantic-схему `CandidateSearchIntent`, преобразование natural-language запроса
-через validated structured output, безопасный query planner, structured PostgreSQL filtering и
-pgvector retrieval с evidence-ссылками.
+- `LLM != database`: LLM output никогда не становится фактом без corpus evidence.
+- Structured output, влияющий на backend logic, проходит Pydantic validation.
+- Hard filters исполняются PostgreSQL, а не embeddings.
+- LLM не генерирует исполняемый SQL или unrestricted Cypher.
+- FACT требует существующие candidate ID и chunk evidence IDs.
+- INFERENCE хранится отдельно, имеет confidence/reason/evidence и статус `unverified`.
+- Provider API keys читаются только из environment variables и не сохраняются.
+- Graph traversal ограничен тремя hops и разрешённым набором relationships.
+- Ingestion paths ограничены configured data root.

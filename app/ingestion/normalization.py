@@ -10,6 +10,12 @@ _SPECIAL_TECH_NAMES = {
 }
 
 DEFAULT_ENTITY_ALIASES = {
+    "питон": "Python",
+    "python разработчик": "Python",
+    "python разработчики": "Python",
+    "кубернетес": "Kubernetes",
+    "кафка": "Kafka",
+    "линукс": "Linux",
     "amazon web service": "Amazon Web Services",
     "amazon web services": "Amazon Web Services",
     "aws": "Amazon Web Services",

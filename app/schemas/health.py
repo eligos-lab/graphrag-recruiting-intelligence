@@ -7,6 +7,8 @@ class HealthChecks(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     database: bool
+    redis: bool
+    graph: bool
 
 
 class HealthResponse(BaseModel):

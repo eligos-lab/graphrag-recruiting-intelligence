@@ -1,26 +1,47 @@
 name: graphrag-recruiting
 
+x-app-environment: &app-environment
+  GRAPHRAG_ENVIRONMENT: local
+  GRAPHRAG_DATABASE_URL: postgresql+asyncpg://graphrag:graphrag@postgres:5432/graphrag
+  GRAPHRAG_SQL_ECHO: "false"
+  GRAPHRAG_CHUNK_MAX_CHARACTERS: ${GRAPHRAG_CHUNK_MAX_CHARACTERS:-2000}
+  GRAPHRAG_EMBEDDING_PROVIDER: ${GRAPHRAG_EMBEDDING_PROVIDER:-ollama}
+  GRAPHRAG_EMBEDDING_API_KEY: ${GRAPHRAG_EMBEDDING_API_KEY:-}
+  GRAPHRAG_EMBEDDING_BASE_URL: ${GRAPHRAG_EMBEDDING_BASE_URL:-http://host.docker.internal:11434}
+  GRAPHRAG_EMBEDDING_MODEL: ${GRAPHRAG_EMBEDDING_MODEL:-qwen3-embedding:0.6b}
+  GRAPHRAG_EMBEDDING_DIMENSION: ${GRAPHRAG_EMBEDDING_DIMENSION:-1024}
+  GRAPHRAG_EMBEDDING_BATCH_SIZE: ${GRAPHRAG_EMBEDDING_BATCH_SIZE:-16}
+  GRAPHRAG_EMBEDDING_TIMEOUT_SECONDS: ${GRAPHRAG_EMBEDDING_TIMEOUT_SECONDS:-300}
+  GRAPHRAG_LLM_PROVIDER: ${GRAPHRAG_LLM_PROVIDER:-ollama}
+  GRAPHRAG_LLM_API_KEY: ${GRAPHRAG_LLM_API_KEY:-}
+  GRAPHRAG_LLM_BASE_URL: ${GRAPHRAG_LLM_BASE_URL:-http://host.docker.internal:11434}
+  GRAPHRAG_LLM_MODEL: ${GRAPHRAG_LLM_MODEL:-qwen3:4b}
+  GRAPHRAG_LLM_TIMEOUT_SECONDS: ${GRAPHRAG_LLM_TIMEOUT_SECONDS:-300}
+  GRAPHRAG_LLM_MAX_INPUT_CHARACTERS: ${GRAPHRAG_LLM_MAX_INPUT_CHARACTERS:-200000}
+  GRAPHRAG_NEO4J_URI: neo4j://neo4j:7687
+  GRAPHRAG_NEO4J_USER: neo4j
+  GRAPHRAG_NEO4J_PASSWORD: ${NEO4J_PASSWORD:-graphrag-password}
+  GRAPHRAG_NEO4J_DATABASE: neo4j
+  GRAPHRAG_REDIS_URL: redis://redis:6379/0
+  GRAPHRAG_CELERY_BROKER_URL: redis://redis:6379/0
+  GRAPHRAG_CELERY_RESULT_BACKEND: redis://redis:6379/1
+  GRAPHRAG_INGESTION_DATA_ROOT: /data
+
 services:
   api:
     build:
       context: .
-    environment:
-      GRAPHRAG_ENVIRONMENT: local
-      GRAPHRAG_DATABASE_URL: postgresql+asyncpg://graphrag:graphrag@postgres:5432/graphrag
-      GRAPHRAG_SQL_ECHO: "false"
-      GRAPHRAG_CHUNK_MAX_CHARACTERS: ${GRAPHRAG_CHUNK_MAX_CHARACTERS:-2000}
-      GRAPHRAG_EMBEDDING_API_KEY: ${GRAPHRAG_EMBEDDING_API_KEY:-}
-      GRAPHRAG_EMBEDDING_BASE_URL: ${GRAPHRAG_EMBEDDING_BASE_URL:-https://api.openai.com/v1}
-      GRAPHRAG_EMBEDDING_MODEL: ${GRAPHRAG_EMBEDDING_MODEL:-text-embedding-3-small}
-      GRAPHRAG_EMBEDDING_DIMENSION: ${GRAPHRAG_EMBEDDING_DIMENSION:-1536}
-      GRAPHRAG_EMBEDDING_BATCH_SIZE: ${GRAPHRAG_EMBEDDING_BATCH_SIZE:-128}
-      GRAPHRAG_EMBEDDING_TIMEOUT_SECONDS: ${GRAPHRAG_EMBEDDING_TIMEOUT_SECONDS:-60}
+    environment: *app-environment
     ports:
       - "8000:8000"
     volumes:
-      - ./data:/data:ro
+      - ./data:/data
     depends_on:
       postgres:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test:
@@ -34,6 +55,27 @@ services:
       timeout: 3s
       retries: 5
       start_period: 10s
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+    command:
+      - celery
+      - -A
+      - app.workers.celery_app:celery_app
+      - worker
+      - --loglevel=INFO
+    environment: *app-environment
+    volumes:
+      - ./data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
 
   postgres:
@@ -55,5 +97,40 @@ services:
       retries: 10
     restart: unless-stopped
 
+  neo4j:
+    image: neo4j:5.26-community
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-graphrag-password}
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      - neo4j_data:/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - wget --no-verbose --tries=1 --spider http://localhost:7474 || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.4-alpine
+    command: redis-server --appendonly yes --maxmemory-policy noeviction
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
 volumes:
+  neo4j_data:
   postgres_data:
+  redis_data:

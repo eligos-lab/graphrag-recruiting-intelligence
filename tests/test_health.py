@@ -4,6 +4,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.exc import OperationalError
 
+from app.api.dependencies import ExternalHealth, get_external_health
 from app.infrastructure.database.session import get_database_session
 from app.main import create_app
 
@@ -37,6 +38,10 @@ async def test_health_endpoint(
         yield session
 
     app.dependency_overrides[get_database_session] = override_session
+    app.dependency_overrides[get_external_health] = lambda: ExternalHealth(
+        redis=True,
+        graph=True,
+    )
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.get("/api/v1/health")

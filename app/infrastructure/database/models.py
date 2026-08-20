@@ -334,3 +334,39 @@ class DocumentChunkModel(TimestampMixin, Base):
     chunk_metadata: Mapped[dict[str, Any]] = mapped_column(
         "metadata", DOCUMENT_METADATA_TYPE, default=dict
     )
+
+
+class CandidateInferenceModel(TimestampMixin, Base):
+    __tablename__ = "candidate_inferences"
+    __table_args__ = (
+        UniqueConstraint(
+            "person_id",
+            "inference_type",
+            "claim",
+            name="uq_candidate_inferences_person_type_claim",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    person_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("people.id", ondelete="CASCADE"), index=True
+    )
+    inference_type: Mapped[str] = mapped_column(String(50), index=True)
+    claim: Mapped[str] = mapped_column(Text)
+    confidence: Mapped[float] = mapped_column(Float)
+    reason: Mapped[str] = mapped_column(Text)
+    evidence_ids: Mapped[list[str]] = mapped_column(DOCUMENT_METADATA_TYPE, default=list)
+    status: Mapped[str] = mapped_column(String(50), default="unverified", index=True)
+
+
+class IngestionJobModel(TimestampMixin, Base):
+    __tablename__ = "ingestion_jobs"
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    status: Mapped[str] = mapped_column(String(50), default="queued", index=True)
+    path: Mapped[str] = mapped_column(Text)
+    source_name: Mapped[str | None] = mapped_column(String(255))
+    options: Mapped[dict[str, Any]] = mapped_column(DOCUMENT_METADATA_TYPE, default=dict)
+    celery_task_id: Mapped[str | None] = mapped_column(String(255), index=True)
+    report: Mapped[dict[str, Any] | None] = mapped_column(DOCUMENT_METADATA_TYPE)
+    error: Mapped[str | None] = mapped_column(Text)

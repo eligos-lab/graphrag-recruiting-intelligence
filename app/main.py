@@ -9,8 +9,8 @@ from app.config import get_settings
 from app.infrastructure.cache import redis_client
 from app.infrastructure.database.session import engine
 from app.infrastructure.graph import graph_repository
-from app.web import _WEB_ROOT, frontend
 from app.security import SecurityMiddleware
+from app.web import _WEB_ROOT, frontend
 
 
 @asynccontextmanager

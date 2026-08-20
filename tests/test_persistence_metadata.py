@@ -7,6 +7,7 @@ def test_phase_one_tables_are_registered() -> None:
         "companies",
         "company_domains",
         "domains",
+        "document_chunks",
         "people",
         "person_companies",
         "person_domains",

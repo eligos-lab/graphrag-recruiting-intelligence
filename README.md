@@ -6,7 +6,7 @@ pgvector и Neo4j.
 
 ## Текущий статус
 
-Реализованы **Phase 1–2**:
+Реализованы **Phase 1–3**:
 
 - FastAPI-приложение и versioned API;
 - async SQLAlchemy 2 и PostgreSQL;
@@ -23,9 +23,16 @@ pgvector и Neo4j.
 - entity resolution по source identity, checksum и безопасному normalized identity;
 - idempotent persistence кандидатов и связанных сущностей;
 - CLI для ingestion и синтетический dataset.
+- semantic/section-aware chunking по summary, experience, projects, education и skills;
+- evidence metadata с ID кандидата, документа и связанных компаний;
+- vendor-neutral `EmbeddingProvider` и рабочий OpenAI adapter;
+- batched embeddings с проверкой количества, размерности и конечности значений;
+- таблица `document_chunks`, pgvector и HNSW cosine index;
+- идемпотентный embedding pipeline, не вызывающий API для неизменённых чанков;
+- CLI для генерации и обновления embeddings.
 
-PDF/LLM extraction, embeddings, Neo4j, Redis и Celery намеренно отложены до соответствующих
-фаз.
+PDF/LLM extraction, query understanding, retrieval, Neo4j, Redis и Celery намеренно отложены
+до соответствующих фаз.
 
 ## Структура
 
@@ -33,10 +40,12 @@ PDF/LLM extraction, embeddings, Neo4j, Redis и Celery намеренно отл
 app/
 ├── api/                         # FastAPI routers и HTTP handlers
 ├── domain/                      # Независимые бизнес-сущности
-├── ingestion/                   # Sources, parsing, normalization, pipeline
+├── ingestion/                   # Sources, parsing, chunking и pipelines
 ├── infrastructure/database/     # SQLAlchemy models, engine, sessions
-├── repositories/                # Ingestion persistence operations
+├── llm/                         # Vendor-neutral contracts и adapters
+├── repositories/                # Ingestion и chunk persistence operations
 ├── schemas/                     # Pydantic API contracts
+├── services/                    # Embedding orchestration и validation
 ├── config.py                    # Typed environment settings
 └── main.py                      # Application factory
 alembic/                         # Database migrations
@@ -72,6 +81,17 @@ docker compose run --rm api sh -c \
 Команда возвращает JSON-отчёт с количеством созданных, обновлённых, пропущенных и ошибочных
 документов. Повторный запуск не создаёт дубли.
 
+Для embeddings скопируйте `.env.example` в локальный `.env`, задайте там
+`GRAPHRAG_EMBEDDING_API_KEY`, затем запустите:
+
+```bash
+docker compose run --rm api sh -c \
+  "alembic upgrade head && python -m app.ingestion.embed_cli"
+```
+
+Повторный запуск пропускает документы, если содержимое чанков и embedding model не изменились.
+Ключ не сохраняется в БД и не должен попадать в Git.
+
 Остановка с сохранением данных:
 
 ```bash
@@ -95,6 +115,13 @@ uvicorn app.main:app --reload
 python -m app.ingestion.cli data/sample_candidates.json --source-name sample
 ```
 
+Генерация embeddings после ingestion:
+
+```bash
+# Сначала задайте GRAPHRAG_EMBEDDING_API_KEY в .env
+python -m app.ingestion.embed_cli
+```
+
 Проверки:
 
 ```bash
@@ -104,7 +131,7 @@ ruff format --check .
 mypy app
 ```
 
-## Архитектурные решения Phase 1–2
+## Архитектурные решения Phase 1–3
 
 - UUID используются как стабильные идентификаторы для последующей синхронизации с графом.
 - Domain dataclasses не зависят от SQLAlchemy; persistence-модели находятся в infrastructure.
@@ -117,9 +144,16 @@ mypy app
 - Alias сохраняется отдельно от canonical skill, поэтому исходные варианты не теряются.
 - Обновление кандидата объединяет знания из загруженных документов. Удаление устаревших
   связей потребует provenance на relationship edges в будущем расширении модели.
-- Размер embeddings, LLM providers и graph repositories не вводятся раньше Phase 3–5.
+- Чанки сохраняют semantic section и evidence metadata; фиксированная нарезка всего резюме
+  по N символов не используется.
+- Бизнес-логика зависит от `EmbeddingProvider`, а OpenAI изолирован в infrastructure adapter.
+- Размерность embeddings задаётся конфигурацией и согласована между provider validation,
+  ORM-моделью и Alembic migration.
+- HNSW индекс использует cosine distance; фактические данные кандидатов остаются в PostgreSQL.
+- Тестовый deterministic provider существует только в automated tests и не выдаётся за AI.
 
 ## Следующая фаза
 
-Phase 3 добавит section-aware chunks, provider abstraction для embeddings, таблицу vectors с
-настраиваемой размерностью и pgvector index. Она не входит в текущую реализацию.
+Phase 4 добавит Pydantic-схему `CandidateSearchIntent`, преобразование natural-language запроса
+через validated structured output, безопасный query planner, structured PostgreSQL filtering и
+pgvector retrieval с evidence-ссылками.

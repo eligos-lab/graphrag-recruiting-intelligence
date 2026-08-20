@@ -3,13 +3,28 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import JSON, Column, Float, ForeignKey, String, Table, Text, UniqueConstraint, Uuid
+from pgvector.sqlalchemy import Vector
+from sqlalchemy import (
+    JSON,
+    Column,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Table,
+    Text,
+    UniqueConstraint,
+    Uuid,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.config import get_settings
 from app.infrastructure.database.base import Base, TimestampMixin
 
 DOCUMENT_METADATA_TYPE = JSON().with_variant(JSONB(), "postgresql")
+EMBEDDING_DIMENSION = get_settings().embedding_dimension
 
 person_companies = Table(
     "person_companies",
@@ -289,3 +304,33 @@ class RawDocumentModel(TimestampMixin, Base):
     )
     checksum: Mapped[str] = mapped_column(String(64), unique=True, index=True)
     person: Mapped[PersonModel | None] = relationship()
+
+
+class DocumentChunkModel(TimestampMixin, Base):
+    __tablename__ = "document_chunks"
+    __table_args__ = (
+        UniqueConstraint("document_id", "ordinal", name="uq_document_chunks_document_ordinal"),
+        Index(
+            "ix_document_chunks_embedding_hnsw",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    person_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("people.id", ondelete="CASCADE"), index=True
+    )
+    document_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("raw_documents.id", ondelete="CASCADE"), index=True
+    )
+    section: Mapped[str] = mapped_column(String(50), index=True)
+    ordinal: Mapped[int] = mapped_column(Integer)
+    content: Mapped[str] = mapped_column(Text)
+    content_checksum: Mapped[str] = mapped_column(String(64))
+    embedding: Mapped[list[float]] = mapped_column(Vector(EMBEDDING_DIMENSION))
+    embedding_model: Mapped[str] = mapped_column(String(255))
+    chunk_metadata: Mapped[dict[str, Any]] = mapped_column(
+        "metadata", DOCUMENT_METADATA_TYPE, default=dict
+    )

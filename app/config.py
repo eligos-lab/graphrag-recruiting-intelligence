@@ -43,6 +43,8 @@ class Settings(BaseSettings):
     celery_result_backend: str = "redis://localhost:6379/1"
     ingestion_data_root: Path = Path("data")
     upload_max_file_size_mb: int = Field(default=25, ge=1, le=200)
+    api_access_key: SecretStr | None = None
+    api_rate_limit_per_minute: int = Field(default=120, ge=10, le=10_000)
     pdf_max_file_size_mb: int = Field(default=25, ge=1, le=200)
     search_candidate_pool_size: int = Field(default=100, ge=1, le=1_000)
     vector_search_limit: int = Field(default=100, ge=1, le=1_000)

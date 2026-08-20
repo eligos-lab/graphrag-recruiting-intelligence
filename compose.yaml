@@ -10,6 +10,8 @@ services:
       GRAPHRAG_SQL_ECHO: "false"
     ports:
       - "8000:8000"
+    volumes:
+      - ./data:/data:ro
     depends_on:
       postgres:
         condition: service_healthy

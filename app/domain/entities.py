@@ -55,3 +55,14 @@ class University:
 class Domain:
     name: str
     id: UUID = field(default_factory=uuid4)
+
+
+@dataclass(frozen=True, slots=True)
+class RawDocument:
+    source: str
+    external_id: str
+    document_type: str
+    raw_text: str
+    checksum: str
+    id: UUID = field(default_factory=uuid4)
+    metadata: dict[str, object] = field(default_factory=dict)

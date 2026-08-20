@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     )
 
     app_name: str = "GraphRAG Recruiting Intelligence"
-    app_version: str = "0.1.0"
+    app_version: str = "0.2.0"
     environment: Literal["local", "test", "staging", "production"] = "local"
     database_url: str = Field(
         default="postgresql+asyncpg://graphrag:graphrag@localhost:5432/graphrag"

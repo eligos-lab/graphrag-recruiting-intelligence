@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import Column, Float, ForeignKey, String, Table, Text, UniqueConstraint, Uuid
+from sqlalchemy import JSON, Column, Float, ForeignKey, String, Table, Text, UniqueConstraint, Uuid
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.infrastructure.database.base import Base, TimestampMixin
+
+DOCUMENT_METADATA_TYPE = JSON().with_variant(JSONB(), "postgresql")
 
 person_companies = Table(
     "person_companies",
@@ -166,24 +170,39 @@ class PersonModel(TimestampMixin, Base):
     summary: Mapped[str | None] = mapped_column(Text)
     source: Mapped[str] = mapped_column(String(100))
     source_id: Mapped[str] = mapped_column(String(255))
+    normalized_identity: Mapped[str | None] = mapped_column(String(512), index=True)
 
-    companies: Mapped[list[CompanyModel]] = relationship(secondary=person_companies)
-    skills: Mapped[list[SkillModel]] = relationship(secondary=person_skills)
-    technologies: Mapped[list[TechnologyModel]] = relationship(secondary=person_technologies)
-    projects: Mapped[list[ProjectModel]] = relationship(secondary=person_projects)
-    universities: Mapped[list[UniversityModel]] = relationship(secondary=person_universities)
-    domains: Mapped[list[DomainModel]] = relationship(secondary=person_domains)
+    companies: Mapped[list[CompanyModel]] = relationship(
+        secondary=person_companies, lazy="selectin"
+    )
+    skills: Mapped[list[SkillModel]] = relationship(secondary=person_skills, lazy="selectin")
+    technologies: Mapped[list[TechnologyModel]] = relationship(
+        secondary=person_technologies, lazy="selectin"
+    )
+    projects: Mapped[list[ProjectModel]] = relationship(secondary=person_projects, lazy="selectin")
+    universities: Mapped[list[UniversityModel]] = relationship(
+        secondary=person_universities, lazy="selectin"
+    )
+    domains: Mapped[list[DomainModel]] = relationship(secondary=person_domains, lazy="selectin")
 
 
 class CompanyModel(TimestampMixin, Base):
     __tablename__ = "companies"
-    __table_args__ = (UniqueConstraint("name", "country", name="uq_companies_name_country"),)
+    __table_args__ = (
+        UniqueConstraint(
+            "normalized_name",
+            "country",
+            name="uq_companies_normalized_name_country",
+            postgresql_nulls_not_distinct=True,
+        ),
+    )
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
     name: Mapped[str] = mapped_column(String(255), index=True)
+    normalized_name: Mapped[str] = mapped_column(String(255), index=True)
     industry: Mapped[str | None] = mapped_column(String(255))
     country: Mapped[str | None] = mapped_column(String(100))
-    domains: Mapped[list[DomainModel]] = relationship(secondary=company_domains)
+    domains: Mapped[list[DomainModel]] = relationship(secondary=company_domains, lazy="selectin")
 
 
 class SkillModel(TimestampMixin, Base):
@@ -195,11 +214,22 @@ class SkillModel(TimestampMixin, Base):
     category: Mapped[str | None] = mapped_column(String(100))
 
 
+class SkillAliasModel(Base):
+    __tablename__ = "skill_aliases"
+
+    alias: Mapped[str] = mapped_column(String(255), primary_key=True)
+    skill_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("skills.id", ondelete="CASCADE"), index=True
+    )
+    skill: Mapped[SkillModel] = relationship()
+
+
 class TechnologyModel(TimestampMixin, Base):
     __tablename__ = "technologies"
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
-    name: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(255), index=True)
+    normalized_name: Mapped[str] = mapped_column(String(255), unique=True, index=True)
 
 
 class ProjectModel(TimestampMixin, Base):
@@ -207,17 +237,28 @@ class ProjectModel(TimestampMixin, Base):
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
     name: Mapped[str] = mapped_column(String(255), index=True)
+    normalized_name: Mapped[str] = mapped_column(String(255), index=True)
     description: Mapped[str | None] = mapped_column(Text)
-    technologies: Mapped[list[TechnologyModel]] = relationship(secondary=project_technologies)
-    domains: Mapped[list[DomainModel]] = relationship(secondary=project_domains)
+    technologies: Mapped[list[TechnologyModel]] = relationship(
+        secondary=project_technologies, lazy="selectin"
+    )
+    domains: Mapped[list[DomainModel]] = relationship(secondary=project_domains, lazy="selectin")
 
 
 class UniversityModel(TimestampMixin, Base):
     __tablename__ = "universities"
-    __table_args__ = (UniqueConstraint("name", "country", name="uq_universities_name_country"),)
+    __table_args__ = (
+        UniqueConstraint(
+            "normalized_name",
+            "country",
+            name="uq_universities_normalized_name_country",
+            postgresql_nulls_not_distinct=True,
+        ),
+    )
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
     name: Mapped[str] = mapped_column(String(255), index=True)
+    normalized_name: Mapped[str] = mapped_column(String(255), index=True)
     country: Mapped[str | None] = mapped_column(String(100))
 
 
@@ -225,4 +266,26 @@ class DomainModel(TimestampMixin, Base):
     __tablename__ = "domains"
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
-    name: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(255), index=True)
+    normalized_name: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+
+
+class RawDocumentModel(TimestampMixin, Base):
+    __tablename__ = "raw_documents"
+    __table_args__ = (
+        UniqueConstraint("source", "external_id", name="uq_raw_documents_source_external_id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    person_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("people.id", ondelete="SET NULL"), index=True
+    )
+    source: Mapped[str] = mapped_column(String(100))
+    external_id: Mapped[str] = mapped_column(String(255))
+    document_type: Mapped[str] = mapped_column(String(50))
+    raw_text: Mapped[str] = mapped_column(Text)
+    document_metadata: Mapped[dict[str, Any]] = mapped_column(
+        "metadata", DOCUMENT_METADATA_TYPE, default=dict
+    )
+    checksum: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    person: Mapped[PersonModel | None] = relationship()

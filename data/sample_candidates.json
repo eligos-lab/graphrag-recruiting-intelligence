@@ -1,0 +1,67 @@
+{
+  "records": [
+    {
+      "id": "sample-ada",
+      "full_name": "Ada Lovelace",
+      "location": "London",
+      "country": "United Kingdom",
+      "current_title": "Senior Backend Engineer",
+      "years_experience": 8,
+      "summary": "Builds distributed payment and fraud-detection systems.",
+      "skills": ["Python", "Postgres", "Kafka"],
+      "technologies": ["AWS", "K8s"],
+      "domains": ["fintech"],
+      "experience": [
+        {
+          "company": "Analytical Engines Ltd",
+          "title": "Senior Backend Engineer",
+          "domains": ["fintech"],
+          "technologies": ["Kafka", "Kubernetes"]
+        }
+      ],
+      "education": [
+        {
+          "university": "University of London",
+          "country": "United Kingdom",
+          "degree": "MSc"
+        }
+      ],
+      "projects": [
+        {
+          "name": "Fraud Graph",
+          "description": "Graph-based transaction risk detection.",
+          "technologies": ["GNN"],
+          "domains": ["fintech", "cybersecurity"]
+        }
+      ]
+    },
+    {
+      "id": "sample-grace",
+      "full_name": "Grace Hopper",
+      "location": "New York",
+      "country": "United States",
+      "current_title": "Platform Engineer",
+      "years_experience": 10,
+      "summary": "Develops compiler and cloud platform infrastructure.",
+      "skills": ["Python", "Distributed Systems"],
+      "technologies": ["Google Cloud", "Kubernetes"],
+      "domains": ["cloud", "LLM infrastructure"],
+      "experience": [
+        {
+          "company": "Compiler Systems",
+          "title": "Platform Engineer",
+          "domains": ["cloud"],
+          "technologies": ["GCP", "K8s"]
+        }
+      ],
+      "projects": [
+        {
+          "name": "Model Serving Platform",
+          "description": "Production model-serving control plane.",
+          "technologies": ["Kubernetes"],
+          "domains": ["LLM infrastructure"]
+        }
+      ]
+    }
+  ]
+}

@@ -17,6 +17,8 @@ def test_phase_one_tables_are_registered() -> None:
         "project_domains",
         "project_technologies",
         "projects",
+        "raw_documents",
+        "skill_aliases",
         "skills",
         "technologies",
         "universities",

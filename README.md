@@ -6,7 +6,7 @@ pgvector и Neo4j.
 
 ## Текущий статус
 
-Реализован только **Phase 1**:
+Реализованы **Phase 1–2**:
 
 - FastAPI-приложение и versioned API;
 - async SQLAlchemy 2 и PostgreSQL;
@@ -15,10 +15,17 @@ pgvector и Neo4j.
 - Alembic и первая миграция;
 - проверка доступности API и базы данных;
 - Docker Compose для API и PostgreSQL (образ уже совместим с будущим pgvector);
-- pytest, Ruff и mypy.
+- pytest, Ruff и mypy;
+- canonical resume schema для structured datasets;
+- адаптеры CSV, JSON и JSONL;
+- raw document layer с checksum и исходным текстом;
+- deterministic normalization и aliases для PostgreSQL/AWS/Kubernetes и других имён;
+- entity resolution по source identity, checksum и безопасному normalized identity;
+- idempotent persistence кандидатов и связанных сущностей;
+- CLI для ingestion и синтетический dataset.
 
-Ingestion, embeddings, Neo4j, Redis, Celery и LLM-интеграции намеренно отложены до
-соответствующих фаз.
+PDF/LLM extraction, embeddings, Neo4j, Redis и Celery намеренно отложены до соответствующих
+фаз.
 
 ## Структура
 
@@ -26,7 +33,9 @@ Ingestion, embeddings, Neo4j, Redis, Celery и LLM-интеграции наме
 app/
 ├── api/                         # FastAPI routers и HTTP handlers
 ├── domain/                      # Независимые бизнес-сущности
+├── ingestion/                   # Sources, parsing, normalization, pipeline
 ├── infrastructure/database/     # SQLAlchemy models, engine, sessions
+├── repositories/                # Ingestion persistence operations
 ├── schemas/                     # Pydantic API contracts
 ├── config.py                    # Typed environment settings
 └── main.py                      # Application factory
@@ -52,6 +61,17 @@ docker compose up --build
 
 API-контейнер применяет `alembic upgrade head` перед запуском Uvicorn.
 
+Загрузка синтетического набора данных в PostgreSQL:
+
+```bash
+docker compose run --rm api sh -c \
+  "alembic upgrade head && python -m app.ingestion.cli /data/sample_candidates.json \
+  --source-name sample"
+```
+
+Команда возвращает JSON-отчёт с количеством созданных, обновлённых, пропущенных и ошибочных
+документов. Повторный запуск не создаёт дубли.
+
 Остановка с сохранением данных:
 
 ```bash
@@ -69,6 +89,12 @@ alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
+Локальный ingestion после применения миграций:
+
+```bash
+python -m app.ingestion.cli data/sample_candidates.json --source-name sample
+```
+
 Проверки:
 
 ```bash
@@ -78,16 +104,22 @@ ruff format --check .
 mypy app
 ```
 
-## Архитектурные решения Phase 1
+## Архитектурные решения Phase 1–2
 
 - UUID используются как стабильные идентификаторы для последующей синхронизации с графом.
 - Domain dataclasses не зависят от SQLAlchemy; persistence-модели находятся в infrastructure.
 - `(source, source_id)` уникален для человека и закладывает основу idempotent ingestion.
 - Связи knowledge graph представлены явными many-to-many таблицами, без Neo4j driver calls.
 - `GET /api/v1/health` возвращает `503/degraded`, если PostgreSQL недоступен.
+- Raw document уникален по `(source, external_id)`, а checksum отсекает копии между sources.
+- Normalized identity используется только при наличии country и единственном совпадении;
+  name-only matching запрещён как слишком рискованный.
+- Alias сохраняется отдельно от canonical skill, поэтому исходные варианты не теряются.
+- Обновление кандидата объединяет знания из загруженных документов. Удаление устаревших
+  связей потребует provenance на relationship edges в будущем расширении модели.
 - Размер embeddings, LLM providers и graph repositories не вводятся раньше Phase 3–5.
 
 ## Следующая фаза
 
-Phase 2 добавит canonical resume schema, raw documents, CSV/JSON adapters, нормализацию,
-alias resolution, persistence pipeline и тесты idempotency. Она не входит в текущую реализацию.
+Phase 3 добавит section-aware chunks, provider abstraction для embeddings, таблицу vectors с
+настраиваемой размерностью и pgvector index. Она не входит в текущую реализацию.

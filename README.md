@@ -7,7 +7,7 @@ Evidence-first AI-система для поиска, анализа, ранжи
 LLM отвечает за structured extraction, parsing intent, reranking и формулировку ответа.
 PostgreSQL, pgvector и Neo4j остаются единственными источниками фактов о кандидатах.
 
-## Реализованный MVP: Phase 1–10
+## Возможности
 
 - FastAPI, async SQLAlchemy 2, Alembic и PostgreSQL;
 - canonical resume schema и adapters для CSV, JSON, JSONL, PDF и text;
@@ -26,6 +26,10 @@ PostgreSQL, pgvector и Neo4j остаются единственными ист
 - Docker Compose для `api`, `worker`, `postgres`, `neo4j` и `redis`;
 - timings, query IDs, retrieval strategy и token-usage logging;
 - automated tests, Ruff и strict mypy.
+
+## Интерфейс
+
+![Recruiting Intelligence — поиск и загрузка корпуса](docs/images/recruiting-intelligence-ui.png)
 
 ## Архитектура
 
@@ -257,3 +261,16 @@ alembic upgrade head --sql
 - Provider API keys читаются только из environment variables и не сохраняются.
 - Graph traversal ограничен тремя hops и разрешённым набором relationships.
 - Ingestion paths ограничены configured data root.
+
+## Security
+
+- Резюме рассматриваются как недоверенные данные: parser отклоняет типичные prompt-injection
+  инструкции и явно запрещает LLM выполнять директивы из содержимого документа.
+- API добавляет CSP, `X-Frame-Options`, `X-Content-Type-Options`, Referrer и Permissions Policy.
+- API имеет rate limit по клиенту; при установке `GRAPHRAG_API_ACCESS_KEY` все `/api/*` endpoints
+  требуют заголовок `X-API-Key`.
+- Upload API ограничивает размер, типы файлов, путь назначения, число файлов и распакованный объём
+  ZIP-архива. Данные окружения, локальные базы, runtime и загруженные резюме исключены из Git.
+
+Это не заменяет антивирусную проверку, SSO, сетевой reverse proxy или production secrets manager:
+для публичного production-развёртывания они должны быть добавлены инфраструктурным слоем.

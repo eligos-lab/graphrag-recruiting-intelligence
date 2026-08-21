@@ -16,6 +16,8 @@ DEFAULT_ENTITY_ALIASES = {
     "кубернетес": "Kubernetes",
     "кафка": "Kafka",
     "линукс": "Linux",
+    "mts": "МТС",
+    "мтс": "МТС",
     "amazon web service": "Amazon Web Services",
     "amazon web services": "Amazon Web Services",
     "aws": "Amazon Web Services",

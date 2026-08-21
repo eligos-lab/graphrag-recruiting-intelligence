@@ -140,9 +140,8 @@ class SqlAlchemyStructuredSearchRepository:
     def _canonical_names(self, values: Sequence[str]) -> list[str]:
         return [self.normalizer.canonicalize(value).normalized_name for value in values]
 
-    @staticmethod
-    def _normalized_names(values: Sequence[str]) -> list[str]:
-        return [normalize_name(value) for value in values]
+    def _normalized_names(self, values: Sequence[str]) -> list[str]:
+        return [self.normalizer.canonicalize(value).normalized_name for value in values]
 
     @staticmethod
     def _city_search_terms(city: str) -> list[str]:

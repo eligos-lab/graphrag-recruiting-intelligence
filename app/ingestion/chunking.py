@@ -56,6 +56,7 @@ class ResumeChunker:
             self._label("Location", resume.location),
             self._label("Country", resume.country),
             self._label("Years of experience", resume.years_experience),
+            self._label("Age", resume.age),
             resume.summary,
         )
         drafts.extend(

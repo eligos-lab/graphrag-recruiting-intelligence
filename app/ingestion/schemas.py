@@ -62,6 +62,7 @@ class CanonicalResume(BaseModel):
     country: str | None = None
     current_title: str | None = None
     years_experience: float | None = Field(default=None, ge=0)
+    age: int | None = Field(default=None, ge=14, le=100)
     summary: str | None = None
     experience: list[ExperienceItem] = Field(default_factory=list)
     skills: list[str] = Field(default_factory=list)
@@ -79,6 +80,7 @@ class ExtractedResume(BaseModel):
     country: str | None = None
     current_title: str | None = None
     years_experience: float | None = Field(default=None, ge=0)
+    age: int | None = Field(default=None, ge=14, le=100)
     summary: str | None = None
     experience: list[ExperienceItem] = Field(default_factory=list)
     skills: list[str] = Field(default_factory=list)

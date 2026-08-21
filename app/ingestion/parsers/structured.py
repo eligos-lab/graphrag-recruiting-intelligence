@@ -24,6 +24,7 @@ class StructuredFieldMapping(BaseModel):
     country: str = "country"
     current_title: str = "current_title"
     years_experience: str = "years_experience"
+    age: str = "age"
     summary: str = "summary"
     experience: str = "experience"
     skills: str = "skills"
@@ -53,6 +54,7 @@ class StructuredResumeParser:
                 payload, self.mapping.current_title, ("title", "job_title")
             ),
             years_experience=self._float_value(payload, self.mapping.years_experience),
+            age=self._integer_value(payload, self.mapping.age),
             summary=self._string_value(payload, self.mapping.summary, ("profile", "about")),
             experience=self._experience_items(self._value(payload, self.mapping.experience)),
             skills=self._string_list(self._value(payload, self.mapping.skills)),
@@ -87,6 +89,12 @@ class StructuredResumeParser:
         if value is None or not str(value).strip():
             return None
         return float(value)
+
+    def _integer_value(self, payload: Mapping[str, Any], field_path: str) -> int | None:
+        value = self._value(payload, field_path)
+        if value is None or not str(value).strip():
+            return None
+        return int(value)
 
     def _structured_list(self, value: Any) -> list[Any]:
         if value is None or value == "":

@@ -46,11 +46,18 @@ class SqlAlchemyStructuredSearchRepository:
                 func.lower(PersonModel.country) == intent.location.country.casefold()
             )
         if intent.location.city:
+            city_terms = self._city_search_terms(intent.location.city)
             statement = statement.where(
-                func.lower(PersonModel.location).contains(intent.location.city.casefold())
+                or_(
+                    *(func.lower(PersonModel.location).contains(term) for term in city_terms)
+                )
             )
         if intent.min_years_experience is not None:
             statement = statement.where(PersonModel.years_experience >= intent.min_years_experience)
+        if intent.min_age is not None:
+            statement = statement.where(PersonModel.age >= intent.min_age)
+        if intent.max_age is not None:
+            statement = statement.where(PersonModel.age <= intent.max_age)
 
         for competency in self._canonical_names(
             [*intent.required_skills, *intent.required_technologies]
@@ -90,6 +97,7 @@ class SqlAlchemyStructuredSearchRepository:
                 country=person.country,
                 current_title=person.current_title,
                 years_experience=person.years_experience,
+                age=person.age,
                 summary=person.summary,
                 skills=sorted(skill.name for skill in person.skills),
                 technologies=sorted(technology.name for technology in person.technologies),
@@ -135,6 +143,20 @@ class SqlAlchemyStructuredSearchRepository:
     @staticmethod
     def _normalized_names(values: Sequence[str]) -> list[str]:
         return [normalize_name(value) for value in values]
+
+    @staticmethod
+    def _city_search_terms(city: str) -> list[str]:
+        normalized = normalize_name(city)
+        # Russian grammatical cases differ only in the ending. Matching the
+        # stable stem against stored metadata keeps city filtering data-driven.
+        is_cyrillic_city = all(
+            "а" <= character <= "я" or character == " "  # noqa: RUF001
+            for character in normalized
+        )
+        if normalized and is_cyrillic_city:
+            stem = normalized.rstrip("аеиоуыюяь")
+            return list(dict.fromkeys([normalized, stem])) if stem else [normalized]
+        return [normalized]
 
 
 class PgVectorSearchRepository:

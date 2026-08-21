@@ -1,5 +1,7 @@
 """Deterministic guardrails around LLM intent extraction for free-form recruiting queries."""
 
+import re
+
 from app.ingestion.normalization import normalize_name
 from app.retrieval.intent import CandidateSearchIntent, LocationIntent
 
@@ -39,6 +41,8 @@ _CITY_ALIASES = {
 
 _AGE_PATTERNS = ("старше ", "младше ", "возраст", "лет от роду")
 _MLOPS_TERMS = ("млопс", "mlops", "мл инженер", "ml engineer", "machine learning engineer")
+_MIN_AGE = re.compile(r"(?:старше|от)\s+(\d{2})\s+лет")
+_MAX_AGE = re.compile(r"(?:младше|до)\s+(\d{2})\s+лет")
 
 
 def enrich_free_form_intent(query: str, intent: CandidateSearchIntent) -> CandidateSearchIntent:
@@ -73,6 +77,8 @@ def enrich_free_form_intent(query: str, intent: CandidateSearchIntent) -> Candid
             item for item in required_technologies if normalize_name(item) != "mlops"
         ]
         preferred_skills = list(dict.fromkeys([*preferred_skills, "Machine Learning"]))
+    min_age_match = _MIN_AGE.search(normalized)
+    max_age_match = _MAX_AGE.search(normalized)
     return intent.model_copy(
         update={
             "semantic_query": semantic_query,
@@ -82,5 +88,7 @@ def enrich_free_form_intent(query: str, intent: CandidateSearchIntent) -> Candid
             "required_technologies": required_technologies,
             "location": LocationIntent(country=intent.location.country, city=city),
             "min_years_experience": None if mentions_age else intent.min_years_experience,
+            "min_age": int(min_age_match.group(1)) if min_age_match else intent.min_age,
+            "max_age": int(max_age_match.group(1)) if max_age_match else intent.max_age,
         }
     )

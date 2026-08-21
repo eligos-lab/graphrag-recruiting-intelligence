@@ -35,6 +35,7 @@ class CandidateProfile(BaseModel):
     country: str | None = None
     current_title: str | None = None
     years_experience: float | None = None
+    age: int | None = None
     summary: str | None = None
     skills: list[str] = Field(default_factory=list)
     technologies: list[str] = Field(default_factory=list)

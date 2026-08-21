@@ -182,6 +182,7 @@ class PersonModel(TimestampMixin, Base):
     country: Mapped[str | None] = mapped_column(String(100), index=True)
     current_title: Mapped[str | None] = mapped_column(String(255), index=True)
     years_experience: Mapped[float | None] = mapped_column(Float)
+    age: Mapped[int | None] = mapped_column(Integer, index=True)
     summary: Mapped[str | None] = mapped_column(Text)
     source: Mapped[str] = mapped_column(String(100))
     source_id: Mapped[str] = mapped_column(String(255))

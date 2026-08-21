@@ -46,6 +46,7 @@ def test_free_form_understanding_handles_mlops_and_candidate_age() -> None:
 
     assert intent.required_skills == ["MLOps"]
     assert intent.min_years_experience is None
+    assert intent.min_age == 18
 
 
 def test_free_form_understanding_normalizes_russian_berlin_case_form() -> None:

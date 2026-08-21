@@ -133,6 +133,7 @@ class IngestionRepository:
             country=resume.country,
             current_title=resume.current_title,
             years_experience=resume.years_experience,
+            age=resume.age,
             summary=resume.summary,
             source=resume.source,
             source_id=resume.external_id,
@@ -157,6 +158,7 @@ class IngestionRepository:
             "country",
             "current_title",
             "years_experience",
+            "age",
             "summary",
         ):
             value = getattr(resume, attribute)

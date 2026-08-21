@@ -35,7 +35,6 @@ class CandidateSearchIntent(BaseModel):
     preferred_domains: list[str] = Field(default_factory=list)
     companies: list[str] = Field(default_factory=list)
     projects: list[str] = Field(default_factory=list)
-    unresolved_constraints: list[str] = Field(default_factory=list)
     semantic_query: str | None = None
 
 

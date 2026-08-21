@@ -157,28 +157,3 @@ async def test_hard_location_filter_with_no_matches_never_falls_back_to_vector_s
     assert result.candidates == []
     assert result.strategy == [RetrievalOperation.STRUCTURED]
     assert vector_repository.candidate_filter is None
-
-
-async def test_unresolved_explicit_constraint_returns_nobody_without_search_fallback() -> None:
-    vector_repository = FakeVectorRepository([])
-    retriever = HybridRetriever(
-        structured_repository=FakeStructuredRepository(set(), {}),
-        vector_repository=vector_repository,
-        embedding_service=EmbeddingService(
-            FakeEmbeddingProvider(), expected_dimension=2, batch_size=10
-        ),
-        ranker=CompositeRanker(),
-    )
-
-    result = await retriever.search(
-        "developer from unknown company",
-        CandidateSearchIntent(
-            unresolved_constraints=["company:Unknown"],
-            semantic_query="developer",
-        ),
-        limit=20,
-    )
-
-    assert result.candidates == []
-    assert result.strategy == [RetrievalOperation.STRUCTURED]
-    assert vector_repository.candidate_filter is None

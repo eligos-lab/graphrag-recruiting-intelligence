@@ -69,13 +69,6 @@ class HybridRetriever:
         plan = self.planner.plan(intent)
         timings = RetrievalTimings()
 
-        if intent.unresolved_constraints:
-            return HybridRetrievalResult(
-                candidates=[],
-                strategy=[RetrievalOperation.STRUCTURED],
-                timings=timings,
-            )
-
         started = perf_counter()
         structured_ids = await self.structured_repository.filter_ids(
             intent,

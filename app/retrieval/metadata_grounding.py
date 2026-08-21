@@ -16,6 +16,12 @@ _CITY_ALIASES = {
     "петербург": "санкт петербург",
 }
 
+_COMPANY_ALIASES = {
+    "вк": "vk",
+    "вконтакте": "vk",
+    "mts": "мтс",
+}
+
 
 @dataclass(frozen=True, slots=True)
 class SearchVocabulary:
@@ -43,29 +49,13 @@ def ground_intent_to_corpus(
     vocabulary: SearchVocabulary,
 ) -> CandidateSearchIntent:
     """Canonicalize LLM output and discard unsupported hard constraints."""
-    raw_cities = [
-        *intent.location.cities,
-        *([intent.location.city] if intent.location.city else []),
-    ]
     cities = _detect_in_query(query, vocabulary.cities, aliases=_CITY_ALIASES)
     countries = _detect_in_query(query, vocabulary.countries)
-    companies = _detect_in_query(query, vocabulary.companies)
-    unresolved = list(intent.unresolved_constraints)
-
-    for value in raw_cities:
-        if (
-            _best_match(value, vocabulary.cities, aliases=_CITY_ALIASES) is None
-            and _value_is_mentioned(query, value)
-            and _best_match(value, vocabulary.companies) is None
-        ):
-            unresolved.append(f"city:{value}")
-    for value in intent.companies:
-        if (
-            _best_match(value, vocabulary.companies) is None
-            and _value_is_mentioned(query, value)
-            and _best_match(value, vocabulary.cities, aliases=_CITY_ALIASES) is None
-        ):
-            unresolved.append(f"company:{value}")
+    companies = _detect_in_query(
+        query,
+        vocabulary.companies,
+        aliases=_COMPANY_ALIASES,
+    )
 
     explicit_skills = _detect_in_query(query, vocabulary.skills)
     explicit_technologies = _detect_in_query(query, vocabulary.technologies)
@@ -85,29 +75,11 @@ def ground_intent_to_corpus(
                 cities=cities,
             ),
             "companies": companies,
-            "unresolved_constraints": list(dict.fromkeys(unresolved)),
             "required_skills": required_skills,
             "required_technologies": required_technologies,
             "required_domains": required_domains,
         }
     )
-
-
-def _value_is_mentioned(query: str, value: str) -> bool:
-    normalized_query_text = normalize_name(query)
-    normalized_query = f" {normalized_query_text} "
-    normalized_value = normalize_name(value)
-    if not normalized_value:
-        return False
-    if f" {normalized_value} " in normalized_query:
-        return True
-    query_tokens = normalized_query_text.split()
-    value_size = max(len(normalized_value.split()), 1)
-    phrases = (
-        " ".join(query_tokens[start : start + value_size])
-        for start in range(len(query_tokens) - value_size + 1)
-    )
-    return any(_similarity(phrase, normalized_value) >= 0.82 for phrase in phrases)
 
 
 def _intersection(values: list[str], explicit: list[str]) -> list[str]:
@@ -119,20 +91,6 @@ def _intersection(values: list[str], explicit: list[str]) -> list[str]:
             if normalize_name(value) in explicit_names
         )
     )
-
-
-def _ground_many(
-    values: list[str],
-    choices: tuple[str, ...],
-    *,
-    aliases: dict[str, str] | None = None,
-) -> list[str]:
-    grounded = [
-        match
-        for value in values
-        if (match := _best_match(value, choices, aliases=aliases)) is not None
-    ]
-    return list(dict.fromkeys(grounded))
 
 
 def _detect_in_query(

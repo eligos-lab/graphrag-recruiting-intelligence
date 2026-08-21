@@ -4,7 +4,7 @@ from app.retrieval.metadata_grounding import SearchVocabulary, ground_intent_to_
 VOCABULARY = SearchVocabulary(
     cities=("Москва", "Санкт-Петербург", "Казань", "Екатеринбург", "Новосибирск"),
     countries=("Россия",),
-    companies=("МТС", "Яндекс"),  # noqa: RUF001
+    companies=("МТС", "Яндекс", "VK"),  # noqa: RUF001
     skills=("Python", "SQL"),
 )
 
@@ -66,7 +66,7 @@ def test_any_known_company_cannot_survive_as_a_location() -> None:
     assert result.companies == ["Яндекс"]
 
 
-def test_unknown_explicit_company_and_city_remain_blocking_constraints() -> None:
+def test_unknown_explicit_company_and_city_are_dropped_for_semantic_fallback() -> None:
     microsoft = ground_intent_to_corpus(
         "разработчик, работавший в компании Microsoft",
         CandidateSearchIntent(companies=["Microsoft"]),
@@ -78,8 +78,8 @@ def test_unknown_explicit_company_and_city_remain_blocking_constraints() -> None
         VOCABULARY,
     )
 
-    assert microsoft.unresolved_constraints == ["company:Microsoft"]
-    assert unknown_city.unresolved_constraints == ["city:несуществующий город"]
+    assert microsoft.companies == []
+    assert unknown_city.location.city is None
 
 
 def test_valid_but_unmentioned_llm_location_is_discarded() -> None:
@@ -93,4 +93,16 @@ def test_valid_but_unmentioned_llm_location_is_discarded() -> None:
     )
 
     assert result.location.city is None
-    assert result.unresolved_constraints == ["company:Microsoft"]
+    assert result.companies == []
+
+
+def test_company_aliases_work_across_cyrillic_and_latin_spelling() -> None:
+    examples = {
+        "разработчик, работавший в компании вк": "VK",
+        "разработчик, работавший в компании VK": "VK",
+        "разработчик, работавший в компании МТС": "МТС",  # noqa: RUF001
+        "разработчик, работавший в компании MTS": "МТС",  # noqa: RUF001
+    }
+    for query, company in examples.items():
+        result = ground_intent_to_corpus(query, CandidateSearchIntent(), VOCABULARY)
+        assert result.companies == [company]

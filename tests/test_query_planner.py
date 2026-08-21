@@ -46,7 +46,7 @@ def test_free_form_understanding_handles_mlops_and_candidate_age() -> None:
 
     assert intent.required_skills == ["MLOps"]
     assert intent.min_years_experience is None
-    assert intent.min_age == 18
+    assert intent.min_age == 19
 
 
 def test_free_form_understanding_normalizes_russian_berlin_case_form() -> None:
@@ -67,4 +67,4 @@ def test_free_form_understanding_extracts_alternative_cities_company_skill_and_a
     assert intent.location.cities == ["Москва", "Санкт-Петербург"]
     assert intent.required_skills == ["Python"]
     assert intent.companies == ["МТС"]  # noqa: RUF001
-    assert intent.min_age == 20
+    assert intent.min_age == 21

@@ -52,8 +52,10 @@ _CITY_ALIASES = {
 _AGE_PATTERNS = ("старше ", "младше ", "возраст", "лет от роду")
 _MLOPS_TERMS = ("млопс", "mlops", "мл инженер", "ml engineer", "machine learning engineer")
 _PYTHON_TERMS = ("python", "питон")
-_MIN_AGE = re.compile(r"(?:старше|от)\s+(\d{2})\s+лет")
-_MAX_AGE = re.compile(r"(?:младше|до)\s+(\d{2})\s+лет")
+_OLDER_THAN_AGE = re.compile(r"старше\s+(\d{2})\s+лет")
+_AT_LEAST_AGE = re.compile(r"от\s+(\d{2})\s+лет")
+_YOUNGER_THAN_AGE = re.compile(r"младше\s+(\d{2})\s+лет")
+_AT_MOST_AGE = re.compile(r"до\s+(\d{2})\s+лет")
 
 
 def enrich_free_form_intent(query: str, intent: CandidateSearchIntent) -> CandidateSearchIntent:
@@ -98,8 +100,20 @@ def enrich_free_form_intent(query: str, intent: CandidateSearchIntent) -> Candid
         required_skills = list(dict.fromkeys([*required_skills, "Python"]))
     if "мтс" in normalized or "mts" in normalized:
         companies = list(dict.fromkeys([*companies, "МТС"]))  # noqa: RUF001
-    min_age_match = _MIN_AGE.search(normalized)
-    max_age_match = _MAX_AGE.search(normalized)
+    older_than_match = _OLDER_THAN_AGE.search(normalized)
+    at_least_match = _AT_LEAST_AGE.search(normalized)
+    younger_than_match = _YOUNGER_THAN_AGE.search(normalized)
+    at_most_match = _AT_MOST_AGE.search(normalized)
+    min_age = intent.min_age
+    max_age = intent.max_age
+    if older_than_match:
+        min_age = int(older_than_match.group(1)) + 1
+    elif at_least_match:
+        min_age = int(at_least_match.group(1))
+    if younger_than_match:
+        max_age = int(younger_than_match.group(1)) - 1
+    elif at_most_match:
+        max_age = int(at_most_match.group(1))
     return intent.model_copy(
         update={
             "semantic_query": semantic_query,
@@ -114,7 +128,7 @@ def enrich_free_form_intent(query: str, intent: CandidateSearchIntent) -> Candid
                 cities=cities,
             ),
             "min_years_experience": None if mentions_age else intent.min_years_experience,
-            "min_age": int(min_age_match.group(1)) if min_age_match else intent.min_age,
-            "max_age": int(max_age_match.group(1)) if max_age_match else intent.max_age,
+            "min_age": min_age,
+            "max_age": max_age,
         }
     )

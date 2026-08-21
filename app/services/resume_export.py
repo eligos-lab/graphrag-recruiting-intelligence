@@ -16,6 +16,7 @@ def _lines(profile: CandidateProfile) -> list[tuple[str, str]]:
         ("Profile", profile.summary or "No summary provided."),
         ("Location", ", ".join(value for value in [profile.location, profile.country] if value)),
         ("Experience", f"{profile.years_experience:g} years" if profile.years_experience else ""),
+        ("Age", f"{profile.age} years" if profile.age is not None else ""),
         ("Skills", ", ".join(profile.skills)),
         ("Technologies", ", ".join(profile.technologies)),
         ("Domains", ", ".join(profile.domains)),

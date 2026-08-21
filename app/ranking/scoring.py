@@ -164,8 +164,17 @@ class CompositeRanker:
             requested.append(
                 (profile.country or "").casefold() == intent.location.country.casefold()
             )
-        if intent.location.city:
-            requested.append(intent.location.city.casefold() in (profile.location or "").casefold())
+        cities = list(
+            dict.fromkeys(
+                [
+                    *intent.location.cities,
+                    *([intent.location.city] if intent.location.city else []),
+                ]
+            )
+        )
+        if cities:
+            profile_location = (profile.location or "").casefold()
+            requested.append(any(city.casefold() in profile_location for city in cities))
         return sum(requested) / len(requested) if requested else 0.0
 
     @staticmethod

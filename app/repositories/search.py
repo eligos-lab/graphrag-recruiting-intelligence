@@ -33,20 +33,26 @@ class SqlAlchemyStructuredSearchRepository:
 
     async def filter_ids(self, intent: CandidateSearchIntent, *, limit: int) -> set[UUID]:
         statement = select(PersonModel.id)
-        if intent.role:
-            statement = statement.where(
-                func.lower(PersonModel.current_title).contains(intent.role.casefold())
-            )
-        if intent.seniority:
-            statement = statement.where(
-                func.lower(PersonModel.current_title).contains(intent.seniority.casefold())
-            )
         if intent.location.country:
             statement = statement.where(
                 func.lower(PersonModel.country) == intent.location.country.casefold()
             )
-        if intent.location.city:
-            city_terms = self._city_search_terms(intent.location.city)
+        requested_cities = list(
+            dict.fromkeys(
+                [
+                    *intent.location.cities,
+                    *([intent.location.city] if intent.location.city else []),
+                ]
+            )
+        )
+        if requested_cities:
+            city_terms = list(
+                dict.fromkeys(
+                    term
+                    for city in requested_cities
+                    for term in self._city_search_terms(city)
+                )
+            )
             statement = statement.where(
                 or_(
                     *(func.lower(PersonModel.location).contains(term) for term in city_terms)

@@ -21,6 +21,7 @@ class QueryPlanner:
         has_hard_filters = bool(
             intent.location.country
             or intent.location.city
+            or intent.location.cities
             or intent.min_years_experience is not None
             or intent.min_age is not None
             or intent.max_age is not None

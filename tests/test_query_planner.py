@@ -56,3 +56,15 @@ def test_free_form_understanding_normalizes_russian_berlin_case_form() -> None:
     )
 
     assert intent.location.city == "Berlin"
+
+
+def test_free_form_understanding_extracts_alternative_cities_company_skill_and_age() -> None:
+    intent = enrich_free_form_intent(
+        "Python-разработчики из Москвы и Санкт-Петербурга, работали в МТС, старше 20 лет",  # noqa: RUF001
+        CandidateSearchIntent(semantic_query="developers"),
+    )
+
+    assert intent.location.cities == ["Москва", "Санкт-Петербург"]
+    assert intent.required_skills == ["Python"]
+    assert intent.companies == ["МТС"]  # noqa: RUF001
+    assert intent.min_age == 20

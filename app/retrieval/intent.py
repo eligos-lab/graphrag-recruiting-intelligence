@@ -10,6 +10,7 @@ class LocationIntent(BaseModel):
 
     country: str | None = None
     city: str | None = None
+    cities: list[str] = Field(default_factory=list)
 
 
 class CandidateSearchIntent(BaseModel):
@@ -40,6 +41,8 @@ fields and wishes in preferred fields. Preserve semantic experience concepts in 
 Treat an explicitly stated city or country as mandatory: never relax a location constraint or
 replace it with candidates from another location, including when the request says "if none,
 return nobody".
+When several cities are acceptable, put them in location.cities; they are alternatives (OR),
+not one combined city name.
 Age is not work experience. Put explicit age requirements into min_age or max_age, and only
 populate min_years_experience when the request explicitly mentions professional experience.
 Classify every requested term into exactly one category; never duplicate a value across skills,

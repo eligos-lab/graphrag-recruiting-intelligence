@@ -1,3 +1,4 @@
+from urllib.parse import quote
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -17,6 +18,11 @@ from app.services.inferences import InferenceService
 from app.services.resume_export import render_docx, render_pdf
 
 router = APIRouter()
+
+
+def _attachment_header(filename: str) -> str:
+    safe_fallback = "resume"
+    return f"attachment; filename={safe_fallback}; filename*=UTF-8''{quote(filename)}"
 
 
 @router.get("/{candidate_id}", response_model=CandidateDetailResponse)
@@ -52,13 +58,13 @@ async def download_resume(
         return Response(
             render_pdf(profile),
             media_type="application/pdf",
-            headers={"Content-Disposition": f'attachment; filename="{filename}.pdf"'},
+            headers={"Content-Disposition": _attachment_header(f"{filename}.pdf")},
         )
     if file_format == "docx":
         return Response(
             render_docx(profile),
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            headers={"Content-Disposition": f'attachment; filename="{filename}.docx"'},
+            headers={"Content-Disposition": _attachment_header(f"{filename}.docx")},
         )
     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Use pdf or docx")
 

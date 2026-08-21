@@ -161,10 +161,13 @@ class HybridRetriever:
         candidates.sort(
             key=lambda item: (-item.score, item.full_name.casefold(), str(item.candidate_id))
         )
-        return HybridRetrievalResult(
-            candidates=[
+        visible_candidates = candidates
+        if not plan.has_hard_filters:
+            visible_candidates = [
                 candidate for candidate in candidates if candidate.score >= self.minimum_score
-            ][:limit],
+            ]
+        return HybridRetrievalResult(
+            candidates=visible_candidates[:limit],
             strategy=[
                 operation
                 for operation in plan.operations

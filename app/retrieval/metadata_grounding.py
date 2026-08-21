@@ -141,7 +141,7 @@ def _detect_in_query(
             or any(alias in phrases for alias in alias_names)
             or any(
                 len(phrase) >= 4
-                and SequenceMatcher(None, phrase, choice_name).ratio() >= 0.82
+                and _similarity(phrase, choice_name) >= 0.82
                 for phrase in phrases
             )
         ):
@@ -162,7 +162,7 @@ def _best_match(
         return by_name[normalized]
     scored = sorted(
         (
-            SequenceMatcher(None, normalized, choice_name).ratio(),
+            _similarity(normalized, choice_name),
             choice,
         )
         for choice_name, choice in by_name.items()
@@ -170,3 +170,32 @@ def _best_match(
     if scored and scored[-1][0] >= 0.82:
         return scored[-1][1]
     return None
+
+
+def _similarity(left: str, right: str) -> float:
+    return max(
+        SequenceMatcher(None, left_form, right_form).ratio()
+        for left_form in _comparison_forms(left)
+        for right_form in _comparison_forms(right)
+    )
+
+
+def _comparison_forms(value: str) -> set[str]:
+    normalized = normalize_name(value)
+    forms = {normalized}
+    if _is_cyrillic_phrase(normalized):
+        # Common Russian case endings: Казань/Казани, Яндекс/Яндекса,
+        # Екатеринбург/Екатеринбурге. This is deliberately a comparison key,
+        # never a replacement for the canonical value stored in the corpus.
+        stem = normalized.rstrip("аеиоуыюяь")
+        if len(stem) >= 3:
+            forms.add(stem)
+    return forms
+
+
+def _is_cyrillic_phrase(value: str) -> bool:
+    return bool(value) and all(
+        ("а" <= character <= "я")  # noqa: RUF001
+        or character in {"ё", " ", "-"}
+        for character in value
+    )

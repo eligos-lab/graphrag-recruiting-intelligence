@@ -67,7 +67,10 @@ def demo_candidate_records() -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
     for index in range(50):
         title, domain, skills, technologies = _PROFILES[index % len(_PROFILES)]
-        city, country = _LOCATIONS[index % len(_LOCATIONS)]
+        # Rotate independently from the role so every role is represented in
+        # every demo city instead of creating accidental role/location pairs.
+        location_index = (index + index // len(_PROFILES)) % len(_LOCATIONS)
+        city, country = _LOCATIONS[location_index]
         company = _COMPANIES[index % len(_COMPANIES)]
         previous_company = _COMPANIES[(index + 3) % len(_COMPANIES)]
         traits = _TRAITS[index % len(_TRAITS)]

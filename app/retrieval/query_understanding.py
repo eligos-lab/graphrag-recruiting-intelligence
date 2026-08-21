@@ -9,8 +9,12 @@ _SEMANTIC_EXPANSIONS = {
     "ai": ("machine learning", "ml", "llm", "mlops"),
     "ии": ("machine learning", "ml", "llm", "mlops"),
     "искусственный интеллект": ("machine learning", "ml", "llm", "mlops"),
+    "разумов искусственных": ("machine learning", "ml", "llm", "mlops"),
+    "разумы искусственные": ("machine learning", "ml", "llm", "mlops"),
     "machine learning": ("ml", "ml engineer", "mlops"),
     "ml": ("machine learning", "ml engineer", "mlops"),
+    "кудесник": ("expert", "engineer"),
+    "опытн": ("senior", "experienced"),
 }
 
 # Local LLMs can occasionally miss Russian case forms while extracting a
@@ -36,6 +40,7 @@ _CITY_ALIASES = {
     "москве": "Москва",
     "москвы": "Москва",
     "москву": "Москва",
+    "московском": "Москва",
     "санкт петербург": "Санкт-Петербург",
     "санкт петербурге": "Санкт-Петербург",
     "петербург": "Санкт-Петербург",

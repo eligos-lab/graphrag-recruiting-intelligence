@@ -78,3 +78,15 @@ def test_company_word_does_not_trigger_ai_semantic_expansion() -> None:
 
     assert intent.semantic_query == "исходный запрос"
     assert intent.preferred_technologies == []
+
+
+def test_archaic_ai_request_is_normalized_without_losing_moscow() -> None:
+    intent = enrich_free_form_intent(
+        "Сыщи мужей опытных, кудесников в деле разумов искусственных, "
+        "обитающих во граде Московском.",
+        CandidateSearchIntent(),
+    )
+
+    assert intent.location.city == "Москва"
+    assert "machine learning" in (intent.semantic_query or "")
+    assert "experienced" in (intent.semantic_query or "")

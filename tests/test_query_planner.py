@@ -36,3 +36,13 @@ def test_free_form_understanding_recognizes_moscow_case_form_as_a_hard_city() ->
 
     assert intent.location.city == "Москва"
     assert QueryPlanner().plan(intent).has_hard_filters is True
+
+
+def test_free_form_understanding_handles_mlops_and_candidate_age() -> None:
+    intent = enrich_free_form_intent(
+        "Ищу мл-инженера старше 18 лет",
+        CandidateSearchIntent(min_years_experience=18, semantic_query="мл-инженер"),
+    )
+
+    assert intent.required_skills == ["MLOps"]
+    assert intent.min_years_experience is None

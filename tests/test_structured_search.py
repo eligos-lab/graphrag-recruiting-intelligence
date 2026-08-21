@@ -80,3 +80,11 @@ async def test_structured_search_uses_hard_filters_and_alias_normalization(
     profile = profiles[next(iter(person_ids))]
     assert profile.full_name == "Ada Lovelace"
     assert profile.skills == ["PostgreSQL"]
+
+    # Resume sources disagree on whether MLOps is a skill or technology.
+    # A stated competency must match either normalized category.
+    skill_or_technology_ids = await repository.filter_ids(
+        CandidateSearchIntent(required_technologies=["Postgres"]),
+        limit=20,
+    )
+    assert skill_or_technology_ids == person_ids

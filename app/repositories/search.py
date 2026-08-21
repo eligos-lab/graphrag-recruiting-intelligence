@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.database.models import (
@@ -52,11 +52,14 @@ class SqlAlchemyStructuredSearchRepository:
         if intent.min_years_experience is not None:
             statement = statement.where(PersonModel.years_experience >= intent.min_years_experience)
 
-        for skill in self._canonical_names(intent.required_skills):
-            statement = statement.where(PersonModel.skills.any(SkillModel.normalized_name == skill))
-        for technology in self._canonical_names(intent.required_technologies):
+        for competency in self._canonical_names(
+            [*intent.required_skills, *intent.required_technologies]
+        ):
             statement = statement.where(
-                PersonModel.technologies.any(TechnologyModel.normalized_name == technology)
+                or_(
+                    PersonModel.skills.any(SkillModel.normalized_name == competency),
+                    PersonModel.technologies.any(TechnologyModel.normalized_name == competency),
+                )
             )
         for domain in self._normalized_names(intent.required_domains):
             statement = statement.where(

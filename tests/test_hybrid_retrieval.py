@@ -124,3 +124,36 @@ async def test_hybrid_retriever_intersects_hard_and_graph_constraints() -> None:
         RetrievalOperation.VECTOR,
         RetrievalOperation.GRAPH,
     ]
+
+
+async def test_hard_location_filter_with_no_matches_never_falls_back_to_vector_search() -> None:
+    candidate_id = uuid4()
+    vector_repository = FakeVectorRepository(
+        [
+            CandidateEvidence(
+                person_id=candidate_id,
+                chunk_id=uuid4(),
+                source=EvidenceSource.VECTOR,
+                content="A highly similar candidate from another city.",
+                score=1.0,
+            )
+        ]
+    )
+    retriever = HybridRetriever(
+        structured_repository=FakeStructuredRepository(set(), {}),
+        vector_repository=vector_repository,
+        embedding_service=EmbeddingService(
+            FakeEmbeddingProvider(), expected_dimension=2, batch_size=10
+        ),
+        ranker=CompositeRanker(),
+    )
+
+    result = await retriever.search(
+        "backend developer in Moscow, otherwise return nobody",
+        CandidateSearchIntent(location={"city": "Moscow"}, semantic_query="backend developer"),
+        limit=20,
+    )
+
+    assert result.candidates == []
+    assert result.strategy == [RetrievalOperation.STRUCTURED]
+    assert vector_repository.candidate_filter is None

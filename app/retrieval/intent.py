@@ -35,6 +35,9 @@ class IntentParser:
     _INSTRUCTIONS = """Convert recruiting searches into the supplied schema.
 Use only constraints explicitly stated by the user. Put mandatory requirements in required
 fields and wishes in preferred fields. Preserve semantic experience concepts in semantic_query.
+Treat an explicitly stated city or country as mandatory: never relax a location constraint or
+replace it with candidates from another location, including when the request says "if none,
+return nobody".
 Classify every requested term into exactly one category; never duplicate a value across skills,
 technologies, and domains. Programming languages and professional competencies are skills.
 Named frameworks, infrastructure platforms, cloud services, databases, and developer tools are

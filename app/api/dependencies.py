@@ -67,6 +67,7 @@ async def get_search_service(
             ranker=CompositeRanker(weights),
             reranker=LLMReranker(llm_provider),
             candidate_pool_size=settings.search_candidate_pool_size,
+            minimum_score=settings.search_min_score,
             vector_limit=settings.vector_search_limit,
             graph_limit=settings.graph_search_limit,
             max_graph_hops=settings.max_graph_hops,

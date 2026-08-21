@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     api_rate_limit_per_minute: int = Field(default=120, ge=10, le=10_000)
     pdf_max_file_size_mb: int = Field(default=25, ge=1, le=200)
     search_candidate_pool_size: int = Field(default=100, ge=1, le=1_000)
+    search_min_score: float = Field(default=0.15, ge=0, le=1)
     vector_search_limit: int = Field(default=100, ge=1, le=1_000)
     graph_search_limit: int = Field(default=100, ge=1, le=1_000)
     max_graph_hops: int = Field(default=3, ge=1, le=3)

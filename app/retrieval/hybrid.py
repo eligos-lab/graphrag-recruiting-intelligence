@@ -41,6 +41,7 @@ class HybridRetriever:
         graph_repository: GraphSearchRepository | None = None,
         reranker: Reranker | None = None,
         candidate_pool_size: int = 100,
+        minimum_score: float = 0.15,
         vector_limit: int = 100,
         graph_limit: int = 100,
         max_graph_hops: int = 3,
@@ -52,6 +53,7 @@ class HybridRetriever:
         self.graph_repository = graph_repository
         self.reranker = reranker
         self.candidate_pool_size = candidate_pool_size
+        self.minimum_score = minimum_score
         self.vector_limit = vector_limit
         self.graph_limit = graph_limit
         self.max_graph_hops = max_graph_hops
@@ -73,6 +75,16 @@ class HybridRetriever:
             limit=self.candidate_pool_size,
         )
         timings.structured_search_ms = self._elapsed_ms(started)
+
+        # A city, required skill, domain, or experience limit is an explicit
+        # constraint.  An empty structured result must never fall back to an
+        # unrestricted semantic search.
+        if plan.has_hard_filters and not structured_ids:
+            return HybridRetrievalResult(
+                candidates=[],
+                strategy=[RetrievalOperation.STRUCTURED],
+                timings=timings,
+            )
 
         vector_evidence: list[CandidateEvidence] = []
         if RetrievalOperation.VECTOR in plan.operations:
@@ -150,7 +162,9 @@ class HybridRetriever:
             key=lambda item: (-item.score, item.full_name.casefold(), str(item.candidate_id))
         )
         return HybridRetrievalResult(
-            candidates=candidates[:limit],
+            candidates=[
+                candidate for candidate in candidates if candidate.score >= self.minimum_score
+            ][:limit],
             strategy=[
                 operation
                 for operation in plan.operations

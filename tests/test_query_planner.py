@@ -1,5 +1,6 @@
 from app.retrieval.intent import CandidateSearchIntent, LocationIntent
 from app.retrieval.planner import QueryPlanner, RetrievalOperation
+from app.retrieval.query_understanding import enrich_free_form_intent
 
 
 def test_query_planner_selects_safe_retrieval_operations() -> None:
@@ -25,3 +26,13 @@ def test_query_planner_never_contains_executable_query_text() -> None:
 
     assert plan.operations == [RetrievalOperation.STRUCTURED]
     assert set(plan.model_dump()) == {"operations", "has_hard_filters"}
+
+
+def test_free_form_understanding_recognizes_moscow_case_form_as_a_hard_city() -> None:
+    intent = enrich_free_form_intent(
+        "Найди разработчиков в Москве, если нет — никого не присылай",
+        CandidateSearchIntent(semantic_query="разработчики"),
+    )
+
+    assert intent.location.city == "Москва"
+    assert QueryPlanner().plan(intent).has_hard_filters is True

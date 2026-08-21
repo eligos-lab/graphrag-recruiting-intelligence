@@ -64,7 +64,7 @@ def enrich_free_form_intent(query: str, intent: CandidateSearchIntent) -> Candid
     expansions = [
         value
         for trigger, values in _SEMANTIC_EXPANSIONS.items()
-        if trigger in normalized
+        if _contains_term(normalized, trigger)
         for value in values
     ]
     semantic_query = " ".join(dict.fromkeys([intent.semantic_query or query, *expansions]))
@@ -75,7 +75,9 @@ def enrich_free_form_intent(query: str, intent: CandidateSearchIntent) -> Candid
         )
     detected_cities = list(
         dict.fromkeys(
-            canonical for alias, canonical in _CITY_ALIASES.items() if alias in normalized
+            canonical
+            for alias, canonical in _CITY_ALIASES.items()
+            if _contains_term(normalized, alias)
         )
     )
     cities = list(
@@ -83,7 +85,7 @@ def enrich_free_form_intent(query: str, intent: CandidateSearchIntent) -> Candid
     )
     city = intent.location.city or (cities[0] if cities else None)
     mentions_age = any(marker in normalized for marker in _AGE_PATTERNS)
-    mentions_mlops = any(term in normalized for term in _MLOPS_TERMS)
+    mentions_mlops = any(_contains_term(normalized, term) for term in _MLOPS_TERMS)
     required_skills = list(intent.required_skills)
     required_technologies = list(intent.required_technologies)
     preferred_skills = list(intent.preferred_skills)
@@ -96,9 +98,9 @@ def enrich_free_form_intent(query: str, intent: CandidateSearchIntent) -> Candid
             item for item in required_technologies if normalize_name(item) != "mlops"
         ]
         preferred_skills = list(dict.fromkeys([*preferred_skills, "Machine Learning"]))
-    if any(term in normalized for term in _PYTHON_TERMS):
+    if any(_contains_term(normalized, term) for term in _PYTHON_TERMS):
         required_skills = list(dict.fromkeys([*required_skills, "Python"]))
-    if "мтс" in normalized or "mts" in normalized:
+    if _contains_term(normalized, "мтс") or _contains_term(normalized, "mts"):
         companies = list(dict.fromkeys([*companies, "МТС"]))  # noqa: RUF001
     older_than_match = _OLDER_THAN_AGE.search(normalized)
     at_least_match = _AT_LEAST_AGE.search(normalized)
@@ -132,3 +134,22 @@ def enrich_free_form_intent(query: str, intent: CandidateSearchIntent) -> Candid
             "max_age": max_age,
         }
     )
+
+
+def _contains_term(normalized_text: str, normalized_term: str) -> bool:
+    text_tokens = normalized_text.split()
+    term_tokens = normalized_term.split()
+    if not term_tokens:
+        return False
+    for start in range(len(text_tokens) - len(term_tokens) + 1):
+        candidate = text_tokens[start : start + len(term_tokens)]
+        if all(
+            actual == expected
+            or (
+                min(len(actual), len(expected)) >= 4
+                and (actual.startswith(expected) or expected.startswith(actual))
+            )
+            for actual, expected in zip(candidate, term_tokens, strict=True)
+        ):
+            return True
+    return False

@@ -30,6 +30,7 @@ class QueryPlanner:
             or intent.required_domains
             or intent.companies
             or intent.projects
+            or intent.unresolved_constraints
         )
         operations = [RetrievalOperation.STRUCTURED]
         if intent.semantic_query:

@@ -68,3 +68,13 @@ def test_free_form_understanding_extracts_alternative_cities_company_skill_and_a
     assert intent.required_skills == ["Python"]
     assert intent.companies == ["МТС"]  # noqa: RUF001
     assert intent.min_age == 21
+
+
+def test_company_word_does_not_trigger_ai_semantic_expansion() -> None:
+    intent = enrich_free_form_intent(
+        "разработчик, работавший в компании Microsoft",
+        CandidateSearchIntent(semantic_query="исходный запрос"),
+    )
+
+    assert intent.semantic_query == "исходный запрос"
+    assert intent.preferred_technologies == []

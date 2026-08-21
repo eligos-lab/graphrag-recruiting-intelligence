@@ -64,3 +64,33 @@ def test_any_known_company_cannot_survive_as_a_location() -> None:
 
     assert result.location.city is None
     assert result.companies == ["Яндекс"]
+
+
+def test_unknown_explicit_company_and_city_remain_blocking_constraints() -> None:
+    microsoft = ground_intent_to_corpus(
+        "разработчик, работавший в компании Microsoft",
+        CandidateSearchIntent(companies=["Microsoft"]),
+        VOCABULARY,
+    )
+    unknown_city = ground_intent_to_corpus(
+        "сотрудник из несуществующего города",
+        CandidateSearchIntent(location=LocationIntent(city="несуществующий город")),
+        VOCABULARY,
+    )
+
+    assert microsoft.unresolved_constraints == ["company:Microsoft"]
+    assert unknown_city.unresolved_constraints == ["city:несуществующий город"]
+
+
+def test_valid_but_unmentioned_llm_location_is_discarded() -> None:
+    result = ground_intent_to_corpus(
+        "разработчик, работавший в компании Microsoft",
+        CandidateSearchIntent(
+            location=LocationIntent(city="Москва"),
+            companies=["Microsoft"],
+        ),
+        VOCABULARY,
+    )
+
+    assert result.location.city is None
+    assert result.unresolved_constraints == ["company:Microsoft"]

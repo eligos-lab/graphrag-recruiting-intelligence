@@ -3,11 +3,19 @@ from dataclasses import dataclass
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings, get_settings
 from app.generation.evidence import EvidenceAnswerGenerator
 from app.infrastructure.cache import redis_client
+from app.infrastructure.database.models import (
+    CompanyModel,
+    DomainModel,
+    PersonModel,
+    SkillModel,
+    TechnologyModel,
+)
 from app.infrastructure.database.session import get_database_session
 from app.infrastructure.graph import graph_repository
 from app.llm.factory import (
@@ -20,6 +28,7 @@ from app.ranking.scoring import CompositeRanker, RankingWeights
 from app.repositories.search import PgVectorSearchRepository, SqlAlchemyStructuredSearchRepository
 from app.retrieval.hybrid import HybridRetriever
 from app.retrieval.intent import IntentParser
+from app.retrieval.metadata_grounding import SearchVocabulary
 from app.retrieval.protocols import GraphSearchRepository
 from app.services.embeddings import EmbeddingService
 from app.services.search import SearchService
@@ -45,6 +54,32 @@ async def get_search_service(
         embedding_provider,
         llm_provider,
     ):
+        vocabulary = SearchVocabulary(
+            cities=tuple(
+                await session.scalars(
+                    select(PersonModel.location)
+                    .where(PersonModel.location.is_not(None))
+                    .distinct()
+                    .limit(200)
+                )
+            ),
+            countries=tuple(
+                await session.scalars(
+                    select(PersonModel.country)
+                    .where(PersonModel.country.is_not(None))
+                    .distinct()
+                    .limit(200)
+                )
+            ),
+            companies=tuple(
+                await session.scalars(select(CompanyModel.name).distinct().limit(200))
+            ),
+            skills=tuple(await session.scalars(select(SkillModel.name).distinct().limit(300))),
+            technologies=tuple(
+                await session.scalars(select(TechnologyModel.name).distinct().limit(300))
+            ),
+            domains=tuple(await session.scalars(select(DomainModel.name).distinct().limit(200))),
+        )
         weights = RankingWeights(
             semantic=settings.ranking_semantic_weight,
             skills=settings.ranking_skill_weight,
@@ -73,7 +108,7 @@ async def get_search_service(
             max_graph_hops=settings.max_graph_hops,
         )
         yield SearchService(
-            intent_parser=IntentParser(llm_provider),
+            intent_parser=IntentParser(llm_provider, vocabulary),
             retriever=retriever,
             answer_generator=EvidenceAnswerGenerator(llm_provider),
         )

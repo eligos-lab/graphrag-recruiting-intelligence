@@ -1,8 +1,12 @@
-from typing import Literal
+import json
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.llm.protocols import LanguageModelProvider
+
+if TYPE_CHECKING:
+    from app.retrieval.metadata_grounding import SearchVocabulary
 
 
 class LocationIntent(BaseModel):
@@ -55,17 +59,34 @@ mean junior-level candidates with roughly 0-3 years of experience; preserve the 
 (for example AI/ML) in semantic_query even if it is not an explicit hard requirement.
 Never produce SQL, Cypher, candidate facts, or candidate names not present in the request."""
 
-    def __init__(self, provider: LanguageModelProvider) -> None:
+    def __init__(
+        self,
+        provider: LanguageModelProvider,
+        vocabulary: "SearchVocabulary | None" = None,
+    ) -> None:
         self.provider = provider
+        self.vocabulary = vocabulary
 
     async def parse(self, query: str) -> CandidateSearchIntent:
+        instructions = self._INSTRUCTIONS
+        if self.vocabulary is not None:
+            instructions += (
+                "\nResolve spelling variants, abbreviations and typos to these canonical corpus "
+                "values. Never put a company into a location field or infer an unstated hard "
+                "skill:\n"
+                + json.dumps(self.vocabulary.as_prompt_data(), ensure_ascii=False)
+            )
         intent = await self.provider.structured_output(
-            instructions=self._INSTRUCTIONS,
+            instructions=instructions,
             prompt=query,
             response_model=CandidateSearchIntent,
         )
         if intent.semantic_query is None:
             intent = intent.model_copy(update={"semantic_query": query})
+        if self.vocabulary is not None:
+            from app.retrieval.metadata_grounding import ground_intent_to_corpus
+
+            intent = ground_intent_to_corpus(query, intent, self.vocabulary)
         from app.retrieval.query_understanding import enrich_free_form_intent
 
         return enrich_free_form_intent(query, intent)

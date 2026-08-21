@@ -64,6 +64,12 @@ class CandidateReason(BaseModel):
 class CandidateMatch(BaseModel):
     candidate_id: UUID
     full_name: str
+    current_title: str | None = None
+    location: str | None = None
+    years_experience: float | None = None
+    skills: list[str] = Field(default_factory=list)
+    technologies: list[str] = Field(default_factory=list)
+    domains: list[str] = Field(default_factory=list)
     score: float = Field(ge=0, le=1)
     breakdown: ScoreBreakdown
     evidence: list[CandidateEvidence] = Field(default_factory=list)

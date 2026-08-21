@@ -61,5 +61,9 @@ def test_composite_ranking_has_explainable_weighted_breakdown() -> None:
     assert match.breakdown.skills == 1
     assert match.breakdown.domains == 1
     assert match.breakdown.graph == 0.5
+    assert match.current_title == "Senior Backend Engineer"
+    assert match.years_experience == 8
+    assert match.skills == ["Kafka"]
+    assert match.domains == ["fintech", "cybersecurity"]
     assert match.reasons
     assert all(reason.evidence_ids == [chunk_id] for reason in match.reasons)

@@ -113,6 +113,12 @@ class CompositeRanker:
         return CandidateMatch(
             candidate_id=profile.person_id,
             full_name=profile.full_name,
+            current_title=profile.current_title,
+            location=profile.location,
+            years_experience=profile.years_experience,
+            skills=profile.skills,
+            technologies=profile.technologies,
+            domains=profile.domains,
             score=max(0.0, min(1.0, weighted / total_weight)),
             breakdown=breakdown,
             evidence=evidence,

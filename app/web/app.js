@@ -23,6 +23,33 @@ function setLoading(loading) {
   }, 300);
 }
 
+function formatExperience(value) {
+  if (value == null) return "";
+  const years = Number(value);
+  const displayed = years.toLocaleString("ru-RU", { maximumFractionDigits: 1 });
+  if (!Number.isInteger(years)) return `${displayed} года опыта`;
+  const lastTwo = years % 100;
+  const lastOne = years % 10;
+  const unit = lastTwo >= 11 && lastTwo <= 14 ? "лет" : lastOne === 1 ? "год" : lastOne >= 2 && lastOne <= 4 ? "года" : "лет";
+  return `${displayed} ${unit} опыта`;
+}
+
+function renderCandidate(candidate) {
+  const stack = [...new Set([...(candidate.skills || []), ...(candidate.technologies || [])])].slice(0, 5);
+  const experience = formatExperience(candidate.years_experience);
+  const meta = [candidate.location, experience].filter(Boolean).map(escapeHtml).join(" · ");
+  const tags = stack.length
+    ? `<div class="candidate-tags">${stack.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div>`
+    : "";
+  return `<article class="candidate">
+    <div class="top"><span class="candidate-name">${escapeHtml(candidate.full_name)}</span><span class="score">${Math.round(candidate.score * 100)}%</span></div>
+    <div class="candidate-title">${escapeHtml(candidate.current_title || "Специализация не указана")}</div>
+    ${meta ? `<div class="candidate-meta">${meta}</div>` : ""}
+    ${tags}
+    <div class="actions"><a href="${api}/candidates/${candidate.candidate_id}/resume.pdf">PDF</a><a href="${api}/candidates/${candidate.candidate_id}/resume.docx">Word</a></div>
+  </article>`;
+}
+
 by("f").onsubmit = async (event) => {
   event.preventDefault();
   setLoading(true);
@@ -31,7 +58,7 @@ by("f").onsubmit = async (event) => {
     const data = await response.json();
     const candidates = [...(data.candidates || [])].sort((left, right) => right.score - left.score);
     by("count").textContent = `${candidates.length} кандидатов`;
-    by("r").innerHTML = candidates.map((candidate) => `<article class="candidate"><div class="top"><span class="candidate-name">${escapeHtml(candidate.full_name)}</span><span class="score">${Math.round(candidate.score * 100)}%</span></div><div class="actions"><a href="${api}/candidates/${candidate.candidate_id}/resume.pdf">PDF</a><a href="${api}/candidates/${candidate.candidate_id}/resume.docx">Word</a></div></article>`).join("");
+    by("r").innerHTML = candidates.map(renderCandidate).join("");
   } finally {
     setLoading(false);
   }

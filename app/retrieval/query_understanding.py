@@ -15,6 +15,21 @@ _SEMANTIC_EXPANSIONS = {
 # structured location.  These aliases make an explicit city constraint
 # deterministic before retrieval begins.
 _CITY_ALIASES = {
+    "берлин": "Berlin",
+    "берлина": "Berlin",
+    "берлине": "Berlin",
+    "варшава": "Warsaw",
+    "варшаве": "Warsaw",
+    "варшавы": "Warsaw",
+    "лондон": "London",
+    "лондоне": "London",
+    "лондона": "London",
+    "амстердам": "Amsterdam",
+    "амстердаме": "Amsterdam",
+    "амстердама": "Amsterdam",
+    "лиссабон": "Lisbon",
+    "лиссабоне": "Lisbon",
+    "лиссабона": "Lisbon",
     "москва": "Москва",
     "москве": "Москва",
     "москвы": "Москва",

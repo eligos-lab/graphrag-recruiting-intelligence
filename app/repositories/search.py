@@ -35,7 +35,10 @@ class SqlAlchemyStructuredSearchRepository:
         statement = select(PersonModel.id)
         if intent.location.country:
             statement = statement.where(
-                func.lower(PersonModel.country) == intent.location.country.casefold()
+                or_(
+                    PersonModel.country == intent.location.country,
+                    func.lower(PersonModel.country) == intent.location.country.casefold(),
+                )
             )
         requested_cities = list(
             dict.fromkeys(
@@ -54,9 +57,7 @@ class SqlAlchemyStructuredSearchRepository:
                 )
             )
             statement = statement.where(
-                or_(
-                    *(func.lower(PersonModel.location).contains(term) for term in city_terms)
-                )
+                or_(*(PersonModel.location.contains(term) for term in city_terms))
             )
         if intent.min_years_experience is not None:
             statement = statement.where(PersonModel.years_experience >= intent.min_years_experience)
@@ -151,6 +152,7 @@ class SqlAlchemyStructuredSearchRepository:
 
     @staticmethod
     def _city_search_terms(city: str) -> list[str]:
+        raw = city.strip()
         normalized = normalize_name(city)
         # Russian grammatical cases differ only in the ending. Matching the
         # stable stem against stored metadata keeps city filtering data-driven.
@@ -160,8 +162,19 @@ class SqlAlchemyStructuredSearchRepository:
         )
         if normalized and is_cyrillic_city:
             stem = normalized.rstrip("аеиоуыюяь")
-            return list(dict.fromkeys([normalized, stem])) if stem else [normalized]
-        return [normalized]
+            return list(
+                dict.fromkeys(
+                    [
+                        raw,
+                        raw.casefold(),
+                        normalized,
+                        normalized.capitalize(),
+                        stem,
+                        stem.capitalize(),
+                    ]
+                )
+            )
+        return list(dict.fromkeys([raw, raw.casefold(), normalized, normalized.title()]))
 
 
 class PgVectorSearchRepository:
